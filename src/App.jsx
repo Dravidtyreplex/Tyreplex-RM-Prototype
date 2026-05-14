@@ -6,6 +6,7 @@ import DashboardView from './views/DashboardView';
 import VisitsView from './views/VisitsView';
 import AskQuoteView from './views/AskQuoteView';
 import RmDealerView from './views/RmDealerView';
+import AllDealersView from './views/AllDealersView';
 import NotificationCenterView from './views/NotificationCenterView';
 import PlaceOrderView from './views/PlaceOrderView';
 import DealerDetailView from './views/DealerDetailView';
@@ -16,6 +17,8 @@ import RmDsrView from './views/RmDsrView';
 import SalesInsightView from './views/SalesInsightView';
 import SearchView from './views/SearchView';
 import FaqView from './views/FaqView';
+import DealerPaymentView from './views/DealerPaymentView';
+import MasterRmView from './views/MasterRmView';
 
 function App() {
   return (
@@ -28,6 +31,7 @@ function App() {
           <Route path="/ask-quote" element={<AskQuoteView />} />
           <Route path="/add-tyre" element={<AddTyreView />} />
           <Route path="/rm-dealers" element={<RmDealerView />} />
+          <Route path="/all-dealers" element={<AllDealersView />} />
           <Route path="/dealer-detail" element={<DealerDetailView />} />
           <Route path="/notifications" element={<NotificationCenterView />} />
           <Route path="/place-order" element={<PlaceOrderView />} />
@@ -37,6 +41,8 @@ function App() {
           <Route path="/sales-insight" element={<SalesInsightView />} />
           <Route path="/search" element={<SearchView />} />
           <Route path="/faq" element={<FaqView />} />
+          <Route path="/dealer-payment" element={<DealerPaymentView />} />
+          <Route path="/master-rm" element={<MasterRmView />} />
           <Route path="/" element={<Navigate to="/login" replace />} />
         </Routes>
       </AppShell>

@@ -53,12 +53,12 @@ const PlaceOrderView = () => {
 
   return (
     <div className="flex flex-col min-h-full">
-      {/* AppBar */}
+      {/* Page header - back arrow + centered title */}
       <header className="bg-white h-14 flex items-center px-4 border-b shrink-0 sticky top-0 z-10">
-        <button onClick={() => window.history.back()} className="mr-4">
-          <ArrowLeft size={21} className="text-[#D32F2F]" />
+        <button onClick={() => window.history.back()} className="mr-3">
+          <ArrowLeft size={21} className="text-black" />
         </button>
-        <h1 className="text-gray-800 text-lg font-medium">Order History</h1>
+        <h1 className="text-base font-medium flex-1 text-center pr-8">Order History</h1>
       </header>
 
       {/* Discount Summary - Horizontal Scroll */}

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Pointer } from 'lucide-react';
+import { Pointer } from 'lucide-react';
 
 const AskQuoteView = () => {
   const navigate = useNavigate();
@@ -36,15 +36,8 @@ const AskQuoteView = () => {
 
   return (
     <div className="flex flex-col min-h-full">
-      {/* AppBar */}
+      {/* Tabs - no separate AppBar since main AppBar shows from AppShell */}
       <header className="bg-white border-b shrink-0 sticky top-0 z-10">
-        <div className="h-14 flex items-center px-4">
-          <button onClick={() => navigate('/dashboard')} className="mr-4">
-            <ArrowLeft size={21} className="text-[#D32F2F]" />
-          </button>
-          <h1 className="text-gray-800 text-lg font-medium">Ask Quote</h1>
-        </div>
-        
         {/* Tabs */}
         <div className="flex overflow-x-auto no-scrollbar bg-white">
           {tabs.map((tab, i) => (

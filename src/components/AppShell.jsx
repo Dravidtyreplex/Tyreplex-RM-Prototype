@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { User, Battery, MapPin, HelpCircle, LogOut, Bell } from 'lucide-react';
+import { User, Users, Battery, MapPin, HelpCircle, LogOut, Bell } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import BottomNav from './BottomNav';
 
@@ -32,12 +32,17 @@ const Sidebar = ({ isOpen, onClose }) => {
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
             className="absolute top-0 left-0 bottom-0 w-4/5 max-w-[300px] bg-white z-50 flex flex-col"
           >
-            <div className="py-6 flex flex-col items-center border-b border-[#D32F2F]">
-              <img src="/logo.png" alt="Logo" className="h-10 mb-4" />
-              <div className="w-full h-[1px] bg-[#D32F2F] mb-4" />
-              <div className="flex items-center w-full px-4">
-                <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center mr-3 text-[#D32F2F]">
-                  <User size={24} />
+            {/* Logo */}
+            <div className="py-6 flex flex-col items-center">
+              <img src="/logo.png" alt="TyrePlex" className="h-10 mb-4" onError={(e) => { e.target.style.display = 'none' }} />
+              <div className="w-full h-[1px] bg-[#D32F2F]" />
+            </div>
+
+            {/* User Profile */}
+            <div className="px-4 pb-4">
+              <div className="flex items-center">
+                <div className="w-10 h-10 rounded-full bg-[#D9D9D9] flex items-center justify-center mr-3">
+                  <User size={24} className="text-[#D32F2F]" />
                 </div>
                 <div className="flex flex-col">
                   <span className="text-sm font-medium">TyrePlex RM</span>
@@ -45,6 +50,9 @@ const Sidebar = ({ isOpen, onClose }) => {
               </div>
             </div>
 
+            <div className="w-full h-[1px] bg-[#D32F2F]" />
+
+            {/* Menu Items */}
             <div className="flex-1 py-4 overflow-y-auto no-scrollbar">
               {menuItems.map((item, index) => (
                 <div
@@ -58,6 +66,7 @@ const Sidebar = ({ isOpen, onClose }) => {
               ))}
             </div>
 
+            {/* Version */}
             <div className="p-4 border-t text-right text-[10px] text-gray-400">
               2.0.31 Build 31
             </div>
@@ -75,6 +84,7 @@ const AppShell = ({ children }) => {
   const navigate = useNavigate();
   
   const isLoginPage = location.pathname === '/login';
+  const isMainPage = ['/dashboard', '/visits', '/ask-quote'].includes(location.pathname);
 
   const handleBottomNavChange = (index) => {
     setBottomNavIndex(index);
@@ -86,16 +96,26 @@ const AppShell = ({ children }) => {
   return (
     <div className="min-h-screen bg-gray-200 flex justify-center items-start overflow-hidden">
       <div className="relative w-full max-w-[430px] h-[100vh] bg-white shadow-2xl overflow-hidden flex flex-col">
-        {/* AppBar (only show if not login) */}
-        {!isLoginPage && (
+        {/* AppBar - only shows on main pages (Dashboard, Visits, Ask Quote) */}
+        {isMainPage && (
           <header className="bg-white h-14 flex items-center justify-between px-4 border-b shrink-0">
             <h1 className="text-[#D32F2F] text-lg font-medium">Tyreplex RM</h1>
             <div className="flex items-center space-x-2">
+              {/* All Dealers / People icon */}
+              <button 
+                onClick={() => navigate('/all-dealers')}
+                className="w-8 h-8 rounded-full bg-[#D32F2F]/20 flex items-center justify-center"
+                aria-label="All Dealers"
+              >
+                <Users size={18} className="text-[#D32F2F]" />
+              </button>
+              {/* Notification icon */}
               <button 
                 onClick={() => navigate('/notifications')}
-                className="p-2 rounded-full bg-red-50 text-[#D32F2F]"
+                className="w-8 h-8 rounded-full bg-[#D32F2F]/20 flex items-center justify-center"
+                aria-label="Notifications"
               >
-                <Bell size={20} />
+                <Bell size={20} className="text-[#D32F2F]" />
               </button>
             </div>
           </header>
@@ -108,8 +128,8 @@ const AppShell = ({ children }) => {
           {children}
         </main>
 
-        {/* Bottom Nav (only show if not login) */}
-        {!isLoginPage && (
+        {/* Bottom Nav - only shows on main pages */}
+        {isMainPage && (
           <BottomNav 
             selectedIndex={bottomNavIndex} 
             onSelect={handleBottomNavChange}

@@ -1,26 +1,10 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  ArrowLeft, 
-  Search, 
-  X, 
-  Filter, 
-  MessageSquare, 
-  MapPin, 
-  Phone, 
-  Edit2,
-  User,
-  Calendar,
-  ChevronRight,
-  ChevronLeft,
-  Receipt,
-  Clock,
-  Home,
-  IndianRupee,
-  CheckCircle2,
-  Plus,
-  CreditCard
+  ChevronLeft, ChevronRight, Search, SlidersHorizontal, User, 
+  MapPin, Phone, MessageCircle, Edit, Clock, FileText, Calendar,
+  X, ChevronDown, CreditCard, Home, IndianRupee
 } from 'lucide-react';
 
 const MetricCard = ({ title, percentage, amount, subAmount, icon: Icon, color }) => (
@@ -44,7 +28,7 @@ const MetricCard = ({ title, percentage, amount, subAmount, icon: Icon, color })
 const BottomSheet = ({ isOpen, onClose, title, children }) => (
   <AnimatePresence>
     {isOpen && (
-      <motion.div key="bottom-sheet-wrapper" className="absolute inset-0 z-50 flex flex-col justify-end">
+      <motion.div key="bottom-sheet-wrapper" className="fixed inset-0 z-[100] flex flex-col justify-end items-center">
         <motion.div 
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           onClick={onClose}
@@ -53,7 +37,7 @@ const BottomSheet = ({ isOpen, onClose, title, children }) => (
         <motion.div 
           initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
           transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-          className="relative bg-white rounded-t-[25px] flex flex-col max-h-[90vh] overflow-hidden"
+          className="relative bg-white rounded-t-[25px] flex flex-col max-h-[85vh] overflow-hidden w-full max-w-[430px]"
         >
           <div className="p-4 border-b border-[#E0E0E0] relative">
             <div className="w-[50px] h-1 bg-[#D9D9D9] rounded-full mx-auto mb-4" />
@@ -75,13 +59,30 @@ const BottomSheet = ({ isOpen, onClose, title, children }) => (
 
 const RmDealerView = () => {
   const navigate = useNavigate();
-  const [isFilterExpanded, setIsFilterExpanded] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [monthOffset, setMonthOffset] = useState(0);
+
+  const now = new Date();
+  const currentMonth = new Date(now.getFullYear(), now.getMonth() + monthOffset);
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isTargetOpen, setIsTargetOpen] = useState(false);
   
   const [selectedDealer, setSelectedDealer] = useState(null);
-  const [month, setMonth] = useState('May, 2026');
+
+  // Dynamic Date calculation for Schedule Visit
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+  const dayAfter = new Date(today);
+  dayAfter.setDate(today.getDate() + 2);
+
+  const formatDate = (date) => {
+    return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  };
 
   // --- Schedule Visit States ---
   const [schedulePaymentMode, setSchedulePaymentMode] = useState('Cash');
@@ -94,36 +95,47 @@ const RmDealerView = () => {
   // --- Target States ---
   const [targetAmount, setTargetAmount] = useState('');
 
+  // Mock dealer data matching the screenshot exactly
   const [dealers, setDealers] = useState([
     {
-      id: '20456',
-      name: 'Modern Tyres & Service',
-      location: 'Sector 18, Noida, 201301',
-      creditPeriod: '15',
+      id: 'I73460',
+      dealerName: 'SAI RAM TYRES',
+      contactPerson: 'ram reddy',
+      location: 'House 1, Kushaiguda Rd, ECIL, Hyderabad',
       mobile: '9876543210',
-      contactPerson: 'Rahul Sharma',
-      pendingAmount: '2,45,000',
-      performanceHistory: [
-        { month: 'May', agePercentage: '75%', total: 12, completed: 10, target: 1500000, gmv: 1120000 }
-      ],
-      visitSchedule: {
-        date: '14 May, 2026',
-        time: '11:30 AM - 12:30 PM'
-      }
+      creditPeriod: '0 DAYS',
+      pendingAmount: '51,725',
+      hasPendingPayment: true,
+      stats: { month: 'May', age: '0%', total: '0', gmv: '₹0', completed: '0', target: null },
+      showSetTarget: true,
+      showScheduleVisit: true,
     },
     {
-      id: '20489',
-      name: 'Super Wheel Care',
-      location: 'Gurgaon, Haryana, 122001',
-      creditPeriod: '30',
-      mobile: '9123456789',
-      contactPerson: 'Amit Gupta',
+      id: 'I73447',
+      dealerName: 'MVIN CARCO PRIVATE LIMITED',
+      contactPerson: 'Suresh Kumar',
+      location: 'Plot No 45, Industrial Area, Telangana',
+      mobile: '8765432109',
+      creditPeriod: '30 DAYS',
+      pendingAmount: '1,20,000',
+      hasPendingPayment: true,
+      stats: { month: 'May', age: '45%', total: '5', gmv: '₹1,80,000', completed: '3', target: '₹4,00,000' },
+      showSetTarget: false,
+      showScheduleVisit: true,
+    },
+    {
+      id: 'I73521',
+      dealerName: 'SHARMA TYRES HOUSE',
+      contactPerson: 'Amit Sharma',
+      location: 'Near Bus Stand, Jaipur Road, Sikar',
+      mobile: '7654321098',
+      creditPeriod: '30 DAYS',
       pendingAmount: '0',
-      performanceHistory: [
-        { month: 'May', agePercentage: '45%', total: 8, completed: 4, target: 0, gmv: 450000 }
-      ],
-      visitSchedule: null
-    }
+      hasPendingPayment: false,
+      stats: { month: 'May', age: '90%', total: '12', gmv: '₹4,50,000', completed: '11', target: '₹5,00,000' },
+      showSetTarget: false,
+      showScheduleVisit: false,
+    },
   ]);
 
   // --- Actions Logic ---
@@ -141,8 +153,9 @@ const RmDealerView = () => {
 
     setDealers(dealers.map(d => {
       if (d.id === selectedDealer.id) {
-        return {
-          ...d,
+        return { 
+          ...d, 
+          showScheduleVisit: false,
           visitSchedule: { date: dateStr, time: scheduleTimeSlot }
         };
       }
@@ -154,7 +167,7 @@ const RmDealerView = () => {
   const openEdit = (dealer) => {
     setSelectedDealer(dealer);
     setEditFormData({
-      name: dealer.name,
+      name: dealer.dealerName,
       contactPerson: dealer.contactPerson,
       mobile: dealer.mobile,
       location: dealer.location
@@ -166,7 +179,13 @@ const RmDealerView = () => {
     if (!selectedDealer) return;
     setDealers(dealers.map(d => {
       if (d.id === selectedDealer.id) {
-        return { ...d, ...editFormData };
+        return { 
+          ...d, 
+          dealerName: editFormData.name,
+          contactPerson: editFormData.contactPerson,
+          mobile: editFormData.mobile,
+          location: editFormData.location
+        };
       }
       return d;
     }));
@@ -183,9 +202,14 @@ const RmDealerView = () => {
     if (!selectedDealer || !targetAmount) return;
     setDealers(dealers.map(d => {
       if (d.id === selectedDealer.id) {
-        const updatedPerf = [...d.performanceHistory];
-        updatedPerf[0].target = parseInt(targetAmount, 10);
-        return { ...d, performanceHistory: updatedPerf };
+        return { 
+          ...d, 
+          showSetTarget: false,
+          stats: {
+            ...d.stats,
+            target: `₹${parseInt(targetAmount, 10).toLocaleString('en-IN')}`
+          }
+        };
       }
       return d;
     }));
@@ -193,156 +217,238 @@ const RmDealerView = () => {
   };
 
   return (
-    <div className="flex flex-col min-h-full bg-[#F9FAFB]">
-      <header className="bg-white h-14 flex items-center justify-between px-4 border-b shrink-0 sticky top-0 z-10">
-        <button onClick={() => navigate('/dashboard')} className="p-2"><ArrowLeft size={21} className="text-[#D32F2F]" /></button>
-        <h1 className="text-gray-800 text-lg font-medium">RM Dealer</h1>
-        <div className="w-10" />
-      </header>
+    <div className="flex flex-col h-full bg-[#F9FAFB] relative overflow-hidden">
+      {/* Page header - matches Flutter: back arrow + centered red title */}
+      <div className="bg-white h-14 flex items-center px-4 border-b shrink-0 z-10 relative">
+        <button onClick={() => navigate(-1)} className="mr-3" aria-label="Go back">
+          <ChevronLeft size={21} className="text-black" />
+        </button>
+        <h1 className="text-base font-medium flex-1 text-center pr-8 text-[#D32F2F]">RM Dealer</h1>
+      </div>
 
-      <div className="flex-1 px-4 overflow-y-auto no-scrollbar">
-        {/* Top Controls */}
-        <div className="flex justify-center mt-3">
-          <div className="flex items-center bg-white border border-black rounded-lg px-2 py-0.5">
-            <button className="p-1"><ChevronLeft size={18} /></button>
-            <span className="mx-3 text-[12px] font-bold text-[#ED1D24] uppercase">{month}</span>
-            <button className="p-1"><ChevronRight size={18} className="text-gray-300" /></button>
+      <div className="flex-1 overflow-y-auto px-4 pb-20 relative z-0">
+        {/* Month Selector */}
+        <div className="flex justify-center my-3">
+          <div className="flex items-center border border-black rounded-lg px-2 py-1">
+            <button onClick={() => setMonthOffset(prev => prev - 1)} aria-label="Previous month">
+              <ChevronLeft size={20} />
+            </button>
+            <span className="mx-3 text-xs font-bold text-[#ED1D24]">
+              {monthNames[currentMonth.getMonth()]}, {currentMonth.getFullYear()}
+            </span>
+            <button 
+              onClick={() => monthOffset < 0 && setMonthOffset(prev => prev + 1)}
+              disabled={monthOffset >= 0}
+              aria-label="Next month"
+            >
+              <ChevronRight size={20} className={monthOffset >= 0 ? 'text-[#D9D9D9]' : 'text-black'} />
+            </button>
           </div>
         </div>
 
-        <div className="flex space-x-2 mt-3">
-          <MetricCard title="Target Added" percentage="(50.0%)" amount="₹ 12,50,000" subAmount="/30L" icon={Home} color="text-[#ED1D24]" />
-          <MetricCard title="Collection" percentage="(20.00%)" amount="₹ 10,00,000" subAmount="/47.5L" icon={IndianRupee} color="text-[#008000]" />
+        {/* Target Added & Collection Cards */}
+        <div className="flex gap-2 mb-3">
+          <div className="flex-1 bg-white rounded-xl border border-gray-200 p-3 shadow-sm">
+            <div className="flex items-center gap-1 mb-1">
+              <span className="text-[10px] font-bold text-[#ED1D24]">Target Added</span>
+              <span className="text-[10px] text-[#ED1D24]">(50%)</span>
+            </div>
+            <div className="flex items-baseline">
+              <span className="text-sm font-bold">₹ 12,50,000</span>
+              <span className="text-[10px] text-gray-400 ml-1">/30L</span>
+            </div>
+          </div>
+          <div className="flex-1 bg-white rounded-xl border border-gray-200 p-3 shadow-sm">
+            <div className="flex items-center gap-1 mb-1">
+              <span className="text-[10px] font-bold text-[#008000]">Collection</span>
+              <span className="text-[10px] text-[#008000]">(20%)</span>
+            </div>
+            <div className="flex items-baseline">
+              <span className="text-sm font-bold">₹ 10,00,000</span>
+              <span className="text-[10px] text-gray-400 ml-1">/47.5L</span>
+            </div>
+          </div>
         </div>
 
-        {/* Search & Filter */}
-        <div className="flex space-x-2.5 mt-3">
-          <div className={`flex-1 flex items-center px-3 py-2.5 rounded-lg border transition-colors h-10 ${isFilterExpanded ? 'bg-[#F0F0F0] border-[#627085]' : 'bg-white border-[#62708580]'}`}>
-            <Search size={16} className={isFilterExpanded ? 'text-[#BDBDBD]' : 'text-[#717782]'} />
-            <input disabled={isFilterExpanded} placeholder="Search by dealer id..." className="bg-transparent border-none outline-none text-xs ml-2 w-full placeholder:text-[#627085]" />
+        {/* Search Box + Filter Button */}
+        <div className="flex gap-2 mb-3">
+          <div className="flex-1 relative">
+            <Search size={16} className="absolute left-3 top-3 text-gray-400" />
+            <input
+              type="text"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              placeholder="Search by dealer id..."
+              className="w-full h-10 pl-9 pr-3 border border-gray-300 rounded-lg text-xs focus:outline-none focus:border-[#D32F2F]"
+            />
           </div>
-          <button onClick={() => setIsFilterExpanded(!isFilterExpanded)} className={`flex items-center px-4 rounded-lg border h-10 transition-all ${isFilterExpanded ? 'bg-black border-black text-white' : 'bg-white border-[#CCCCCC] text-[#627085]'}`}>
-            {isFilterExpanded ? <X size={15} /> : <Filter size={15} className="mr-1.5" />}
-            <span className="text-xs font-bold">Filters</span>
+          <button
+            onClick={() => setIsFilterOpen(!isFilterOpen)}
+            className={`h-10 px-4 rounded-lg border flex items-center gap-1.5 text-xs font-bold ${
+              isFilterOpen ? 'bg-black text-white border-black' : 'bg-white text-[#627085] border-gray-300'
+            }`}
+          >
+            <SlidersHorizontal size={14} />
+            Filters
           </button>
         </div>
 
-        {/* List Header */}
-        <div className="flex justify-between items-center px-2 mt-4 mb-3">
-          <span className="text-sm font-semibold text-gray-800 font-bold">Dealer Assigned</span>
-          <div className="w-5.5 h-5.5 rounded-full bg-[#2664EB]/10 flex items-center justify-center">
-            <span className="text-[10px] font-[900] text-black px-2">{dealers.length}</span>
-          </div>
-        </div>
-
-        {/* Dealer Cards */}
-        <div className="space-y-4 pb-20">
-          {dealers.map((dealer, index) => (
-            <div key={index} className="relative mb-6">
-              <div className="absolute top-0 right-0 bg-[#2664EB]/10 border border-[#2664EB] rounded-bl-[20px] rounded-tr-[20px] px-5 py-1 z-10">
-                <span className="text-[10px] font-bold text-[#2664EB]">{dealer.id}</span>
+        {/* Filter Panel */}
+        {isFilterOpen && (
+          <div className="bg-white border border-[#D9D9D9] rounded-lg p-4 mb-3">
+            <p className="text-sm font-semibold mb-3">Filter By Date</p>
+            <div className="flex gap-3 mb-3">
+              <div className="flex-1">
+                <label className="text-[11px] text-[#627085] font-medium">Date from</label>
+                <input type="date" className="w-full h-9 border border-gray-300 rounded px-2 text-[10px] mt-1" />
               </div>
-
-              <div className="bg-white rounded-[20px] border border-[#E0E0E0] shadow-sm p-5 pt-8">
-                <div className="flex items-center space-x-2 mb-4">
-                  <h3 className="text-base font-[900] text-gray-900 leading-tight">{dealer.name}</h3>
-                  <button onClick={() => openEdit(dealer)} className="w-6.5 h-6.5 rounded-full bg-gray-100 flex items-center justify-center">
-                    <Edit2 size={13} className="text-gray-500" />
-                  </button>
-                </div>
-
-                <div className="flex space-x-4 mb-4">
-                  <div className="flex-1 flex items-start">
-                    <User size={16} className="text-gray-400 mr-1.5 mt-0.5" />
-                    <span className="text-[11px] font-semibold text-gray-500">{dealer.contactPerson}</span>
-                  </div>
-                  <div className="flex-[2] flex items-start">
-                    <MapPin size={16} className="text-gray-400 mr-1.5 mt-0.5" />
-                    <span className="text-[11px] font-semibold text-gray-500 leading-tight">{dealer.location}</span>
-                  </div>
-                </div>
-
-                <div className="flex space-x-3 mb-4">
-                  <button className="flex-1 border border-[#008000] rounded-lg py-2 flex items-center justify-center space-x-2 text-[#008000] active:bg-green-50">
-                    <MessageSquare size={16} className="fill-[#008000]" />
-                    <span className="text-xs font-bold">Whatsapp</span>
-                  </button>
-                  <button className="flex-1 border border-[#2664EB] rounded-lg py-2 flex items-center justify-center space-x-2 text-[#2664EB] active:bg-blue-50">
-                    <Phone size={16} className="fill-[#2664EB]" />
-                    <span className="text-xs font-bold">Call</span>
-                  </button>
-                </div>
-
-                {/* Performance Box */}
-                <div className="bg-[#F7F9FA] rounded-[10px] p-4 mb-4">
-                  <div className="grid grid-cols-3 gap-y-5">
-                     {['MONTH', '%AGE', 'TOTAL'].map((h, i) => (
-                       <div key={i} className={`flex flex-col ${i===1?'items-center':i===2?'items-end':''}`}>
-                         <span className="text-[9px] font-bold text-gray-400 uppercase">{h}</span>
-                         <span className="text-[11px] font-bold text-gray-800">{dealer.performanceHistory[0].month}</span>
-                       </div>
-                     ))}
-                     <div className="flex flex-col">
-                        <span className="text-[9px] font-bold text-gray-400 uppercase">GMV</span>
-                        <span className="text-[11px] font-bold text-gray-800">₹{dealer.performanceHistory[0].gmv.toLocaleString()}</span>
-                     </div>
-                     <div className="flex flex-col items-center">
-                        <span className="text-[9px] font-bold text-gray-400 uppercase">COMPLETED</span>
-                        <span className="text-[11px] font-bold text-gray-800">{dealer.performanceHistory[0].completed}</span>
-                     </div>
-                     <div className="flex flex-col items-end">
-                        <span className="text-[9px] font-bold text-gray-400 uppercase">TARGET</span>
-                        {dealer.performanceHistory[0].target === 0 ? (
-                           <button onClick={() => openTarget(dealer)} className="text-[10px] font-bold text-[#2664EB]">+ Set Target</button>
-                        ) : (
-                           <span className="text-[11px] font-bold text-gray-800">₹{dealer.performanceHistory[0].target.toLocaleString()}</span>
-                        )}
-                     </div>
-                  </div>
-                </div>
-
-                {dealer.pendingAmount !== '0' && (
-                  <button className="w-full bg-[#D32F2F] text-white rounded-lg py-2.5 flex items-center justify-center space-x-2 mb-4">
-                    <Receipt size={14} />
-                    <span className="text-xs font-bold">Pending Payment Details</span>
-                  </button>
-                )}
-
-                <div className="inline-block bg-[#008000]/10 rounded-full px-2 py-1 mb-4">
-                  <span className="text-[9px] font-bold text-[#008000] uppercase">CREDIT PERIOD: {dealer.creditPeriod} DAYS</span>
-                </div>
-
-                {/* Visit Logic */}
-                {dealer.visitSchedule ? (
-                  <div className="mt-2 rounded-[20px] border border-[#EB5A0C] p-4 bg-white shadow-sm">
-                     <div className="flex items-start space-x-2">
-                       <div className="p-2 rounded-[10px] border border-[#EB5A0C]/40"><Calendar size={14} className="text-[#F44336]" /></div>
-                       <div className="flex-1">
-                          <h4 className="text-[13px] font-bold text-[#F44336]">Visit Schedule</h4>
-                          <div className="flex items-center space-x-1.5 mt-0.5">
-                             <span className="text-[10px] font-bold text-black">{dealer.visitSchedule.date}</span>
-                             <div className="bg-[#EB5A0C]/10 border border-[#EB5A0C] rounded px-1.5 py-0.5">
-                                <span className="text-[8px] font-bold text-black">{dealer.visitSchedule.time}</span>
-                             </div>
-                          </div>
-                       </div>
-                       <button onClick={() => openSchedule(dealer)} className="p-1.5 rounded-full border border-[#EB5A0C]/40"><Edit2 size={12} className="text-[#F44336]" /></button>
-                     </div>
-                     <div className="h-[1px] bg-[#EB5A0C] my-3 opacity-20" />
-                     <button className="w-full bg-[#EB5A0C] text-white text-[11px] font-bold py-2 rounded-full shadow-md active:scale-95">Start Visit</button>
-                  </div>
-                ) : (
-                  <div className="mt-2">
-                    <button onClick={() => openSchedule(dealer)} className="w-full border-2 border-dashed border-[#EB5A0C]/40 text-[#EB5A0C] py-3 rounded-[15px] flex items-center justify-center space-x-2 font-bold text-xs active:bg-orange-50">
-                      <Plus size={16} />
-                      <span>Schedule Visit</span>
-                    </button>
-                  </div>
-                )}
+              <div className="flex-1">
+                <label className="text-[11px] text-[#627085] font-medium">Date to</label>
+                <input type="date" className="w-full h-9 border border-gray-300 rounded px-2 text-[10px] mt-1" />
               </div>
             </div>
-          ))}
-        </div>
+            <div className="flex gap-2">
+              <button className="flex-1 h-9 bg-[#D32F2F] text-white text-xs font-medium rounded-lg">Apply</button>
+              <button onClick={() => setIsFilterOpen(false)} className="flex-1 h-9 border border-gray-300 text-xs font-medium rounded-lg">Reset All</button>
+            </div>
+          </div>
+        )}
+
+        {/* Dealer Cards */}
+        {dealers.map((dealer) => (
+          <div key={dealer.id} className="bg-white rounded-2xl border border-[#E0E0E0] p-5 mb-4 shadow-sm relative">
+            {/* Dealer ID Badge */}
+            <div className="absolute top-0 right-0 bg-[#2664EB]/10 border border-[#2664EB] rounded-bl-2xl rounded-tr-2xl px-5 py-1">
+              <span className="text-[10px] font-semibold">ID:{dealer.id}</span>
+            </div>
+
+            <div className="mt-3" />
+
+            {/* Dealer Name + Edit icon */}
+            <div className="flex items-center gap-2 mb-4">
+              <h3 className="text-base font-black text-gray-900">{dealer.dealerName}</h3>
+              <button onClick={() => openEdit(dealer)} className="w-6 h-6 rounded-full bg-[#D9D9D9]/60 flex items-center justify-center active:scale-90" aria-label="Edit dealer">
+                <Edit size={12} className="text-[#757575]" />
+              </button>
+            </div>
+
+            {/* Contact Person + Location */}
+            <div className="flex gap-3 mb-4">
+              <div className="flex items-start gap-1.5 shrink-0">
+                <User size={14} className="text-[#757575] mt-0.5" />
+                <span className="text-[11px] text-[#757575] font-semibold">{dealer.contactPerson}</span>
+              </div>
+              <div className="flex items-start gap-1.5">
+                <MapPin size={14} className="text-[#757575] mt-0.5 shrink-0" />
+                <span className="text-[11px] text-[#757575] font-semibold leading-relaxed">{dealer.location}</span>
+              </div>
+            </div>
+
+            {/* WhatsApp & Call Buttons */}
+            <div className="flex gap-3 mb-4">
+              <button className="flex-1 flex items-center justify-center gap-2 border border-[#008000] rounded-lg py-2.5 text-[#008000] active:bg-green-50">
+                <MessageCircle size={16} />
+                <span className="text-sm font-medium">Whatsapp</span>
+              </button>
+              <button className="flex-1 flex items-center justify-center gap-2 border border-[#2664EB] rounded-lg py-2.5 text-[#2664EB] active:bg-blue-50">
+                <Phone size={16} />
+                <span className="text-sm font-medium">Call</span>
+              </button>
+            </div>
+
+            {/* Stats Box */}
+            <div className="bg-[#F7F9FA] rounded-lg p-4 mb-4">
+              {/* Row 1 */}
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                <div>
+                  <p className="text-[10px] text-gray-500 font-medium">MONTH</p>
+                  <p className="text-sm font-bold">{dealer.stats.month}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-gray-500 font-medium">%Age</p>
+                  <p className="text-sm font-bold">{dealer.stats.age}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-gray-500 font-medium">TOTAL</p>
+                  <p className="text-sm font-bold">{dealer.stats.total}</p>
+                </div>
+              </div>
+              {/* Row 2 */}
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <p className="text-[10px] text-gray-500 font-medium">GMV</p>
+                  <p className="text-sm font-bold">{dealer.stats.gmv}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-gray-500 font-medium">COMPLETED</p>
+                  <p className="text-sm font-bold">{dealer.stats.completed}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-gray-500 font-medium flex items-center gap-1">
+                    TARGET
+                    <Clock size={10} className="text-gray-400" />
+                  </p>
+                  {dealer.showSetTarget ? (
+                    <button onClick={() => openTarget(dealer)} className="border border-[#D32F2F] rounded px-2 py-0.5 mt-0.5 active:bg-red-50">
+                      <span className="text-[11px] text-[#D32F2F] font-medium">+ Set Target</span>
+                    </button>
+                  ) : (
+                    <p className="text-sm font-bold">{dealer.stats.target}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Pending Payment Details Button */}
+            {dealer.hasPendingPayment && (
+              <button className="w-full bg-[#D32F2F] text-white rounded-full py-3 flex items-center justify-center gap-2 mb-3 active:scale-95 transition-transform">
+                <FileText size={14} />
+                <span className="text-sm font-semibold">Pending Payment Details</span>
+              </button>
+            )}
+
+            {/* Credit Period Badge */}
+            <div className="mb-3">
+              <span className="inline-block bg-[#008000]/10 text-[#008000] text-[9px] font-bold px-2 py-1 rounded-full">
+                CREDIT PERIOD: {dealer.creditPeriod}
+              </span>
+            </div>
+
+            {/* Visit Logic */}
+            {dealer.visitSchedule ? (
+              <div className="mt-2 rounded-[20px] border border-[#EB5A0C] p-4 bg-white shadow-sm">
+                 <div className="flex items-start space-x-2">
+                   <div className="p-2 rounded-[10px] border border-[#EB5A0C]/40"><Calendar size={14} className="text-[#F44336]" /></div>
+                   <div className="flex-1">
+                      <h4 className="text-[13px] font-bold text-[#F44336]">Visit Schedule</h4>
+                      <div className="flex items-center space-x-1.5 mt-0.5">
+                         <span className="text-[10px] font-bold text-black">{dealer.visitSchedule.date}</span>
+                         <div className="bg-[#EB5A0C]/10 border border-[#EB5A0C] rounded px-1.5 py-0.5">
+                            <span className="text-[8px] font-bold text-black">{dealer.visitSchedule.time}</span>
+                         </div>
+                      </div>
+                   </div>
+                   <button onClick={() => openSchedule(dealer)} className="p-1.5 rounded-full border border-[#EB5A0C]/40"><Edit size={12} className="text-[#F44336]" /></button>
+                 </div>
+                 <div className="h-[1px] bg-[#EB5A0C] my-3 opacity-20" />
+                 <button className="w-full bg-[#EB5A0C] text-white text-[11px] font-bold py-2 rounded-full shadow-md active:scale-95">Start Visit</button>
+              </div>
+            ) : (
+              <div className="flex items-end justify-between">
+                <div>
+                  <p className="text-xs text-[#D32F2F] font-medium">Pending Amount</p>
+                  <p className="text-lg font-bold">₹{dealer.pendingAmount}</p>
+                </div>
+                <button onClick={() => openSchedule(dealer)} className="flex items-center gap-1.5 border border-[#D32F2F] rounded-lg px-4 py-2.5 active:bg-red-50">
+                  <Calendar size={14} className="text-[#D32F2F]" />
+                  <span className="text-sm font-medium text-[#D32F2F]">Schedule Visit</span>
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+
+        <div className="h-4" />
       </div>
 
       {/* --- Bottom Sheets --- */}
@@ -350,13 +456,11 @@ const RmDealerView = () => {
       {/* Schedule Visit */}
       <BottomSheet isOpen={isScheduleOpen} onClose={() => setIsScheduleOpen(false)} title="Schedule Visit">
         <div className="space-y-5 pb-4">
-          {/* Visiting Section */}
           <div className="bg-[#F7F9FA] rounded-[10px] p-3 w-full">
             <span className="text-[11px] font-medium text-[#627085]">Visiting</span>
-            <div className="text-[12px] font-bold text-black mt-0.5">{selectedDealer?.name || ''}</div>
+            <div className="text-[12px] font-bold text-black mt-0.5">{selectedDealer?.dealerName || ''}</div>
           </div>
 
-          {/* Select Reason */}
           <div>
             <label className="block text-[14px] font-bold text-black mb-3">Select Reason</label>
             <div className="relative">
@@ -367,12 +471,11 @@ const RmDealerView = () => {
                 <option value="General Visit">General Visit</option>
               </select>
               <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
-                <ChevronRight size={18} className="text-[#627085] rotate-90" />
+                <ChevronDown size={18} className="text-[#627085]" />
               </div>
             </div>
           </div>
 
-          {/* Payment Collection Section */}
           <div className="bg-[#F7F9FA] rounded-[10px] p-4">
             <div className="flex justify-between items-center">
               <div className="flex items-center space-x-2">
@@ -415,7 +518,6 @@ const RmDealerView = () => {
             </div>
           </div>
 
-          {/* Select Date */}
           <div>
             <div className="flex items-center space-x-1.5 mb-3">
               <Calendar size={15} className="text-[#627085]" />
@@ -444,7 +546,6 @@ const RmDealerView = () => {
             </div>
           </div>
 
-          {/* Select Time Slot */}
           <div>
             <div className="flex items-center space-x-1.5 mb-3">
               <Clock size={16} className="text-[#627085]" />
@@ -481,23 +582,129 @@ const RmDealerView = () => {
 
       {/* Edit Dealer */}
       <BottomSheet isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} title="Edit Dealer Details">
-        <div className="space-y-5">
-           {[
-             { label: 'DEALER NAME', key: 'name', value: editFormData.name },
-             { label: 'CONTACT PERSON', key: 'contactPerson', value: editFormData.contactPerson },
-             { label: 'MOBILE NUMBER', key: 'mobile', value: editFormData.mobile },
-             { label: 'LOCATION', key: 'location', value: editFormData.location },
-           ].map(f => (
-             <div key={f.label}>
-               <label className="block text-[10px] font-black text-gray-400 mb-1.5 uppercase">{f.label}</label>
-               <input 
-                 value={f.value || ''} 
-                 onChange={(e) => setEditFormData({...editFormData, [f.key]: e.target.value})}
-                 className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-800 outline-none focus:border-gray-400" 
-               />
-             </div>
-           ))}
-           <button onClick={handleSaveChanges} className="w-full bg-[#D32F2F] text-white py-3.5 rounded-xl font-bold mt-4 active:scale-95">Save Changes</button>
+        <div className="space-y-6 pb-6">
+          
+          {/* Basic Details */}
+          <div>
+            <h4 className="text-[14px] font-bold text-[#9E9E9E] mb-3">Basic Details</h4>
+            
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-[#627085] mb-1.5">Dealer Name</label>
+                <div className="w-full px-3 py-3 bg-[#F7F9FA] rounded-lg border border-[#E0E0E0] text-[12px] font-semibold text-black">
+                  {selectedDealer?.dealerName || ''}
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="block text-[11px] font-semibold text-[#627085] mb-1.5">Dealer ID</label>
+                  <div className="w-full px-3 py-3 bg-[#F7F9FA] rounded-lg border border-[#E0E0E0] text-[12px] font-semibold text-black">
+                    {selectedDealer?.id || ''}
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <label className="block text-[11px] font-semibold text-[#627085] mb-1.5">Mobile Number</label>
+                  <div className="w-full px-3 py-3 bg-[#F7F9FA] rounded-lg border border-[#E0E0E0] text-[12px] font-semibold text-black">
+                    {selectedDealer?.mobile || 'N/A'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Location */}
+          <div>
+            <h4 className="text-[12px] font-bold text-[#9E9E9E] mb-3">Location</h4>
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <label className="block text-[11px] font-semibold text-[#627085] mb-1.5">City</label>
+                <div className="w-full px-3 py-3 bg-[#F7F9FA] rounded-lg border border-[#E0E0E0] text-[12px] font-semibold text-black overflow-hidden whitespace-nowrap text-ellipsis">
+                  {selectedDealer?.location ? selectedDealer.location.split(',').slice(-2, -1)[0]?.trim() || 'N/A' : 'N/A'}
+                </div>
+              </div>
+              <div className="flex-1">
+                <label className="block text-[11px] font-semibold text-[#627085] mb-1.5">Pincode</label>
+                <div className="w-full px-3 py-3 bg-[#F7F9FA] rounded-lg border border-[#E0E0E0] text-[12px] font-semibold text-black">
+                  122001
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Segmentation */}
+          <div>
+            <h4 className="text-[14px] font-bold text-[#9E9E9E] mb-3">Segmentation</h4>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-[#627085] mb-1.5">Dealer Type</label>
+                <div className="relative">
+                  <select className="w-full px-3 py-3 bg-white rounded-lg border border-[#E0E0E0] text-[12px] font-semibold text-[#9E9E9E] appearance-none outline-none focus:border-[#2664EB]">
+                    <option>Select Dealer Type</option>
+                  </select>
+                  <ChevronDown size={20} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#627085] pointer-events-none" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-[#627085] mb-1.5">Outlet Type</label>
+                <div className="relative">
+                  <select className="w-full px-3 py-3 bg-white rounded-lg border border-[#E0E0E0] text-[12px] font-semibold text-[#9E9E9E] appearance-none outline-none focus:border-[#2664EB]">
+                    <option>Select Outlet Type</option>
+                  </select>
+                  <ChevronDown size={20} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#627085] pointer-events-none" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Brand & Authorisation */}
+          <div>
+            <h4 className="text-[14px] font-bold text-[#9E9E9E] mb-3">Brand & Authorisation</h4>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-[#627085] mb-1.5">Select Authorised Dealer</label>
+                <div className="relative">
+                  <select className="w-full px-3 py-3 bg-white rounded-lg border border-[#E0E0E0] text-[12px] font-semibold text-[#9E9E9E] appearance-none outline-none focus:border-[#2664EB]">
+                    <option>Select Authorised Dealer</option>
+                  </select>
+                  <ChevronDown size={20} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#627085] pointer-events-none" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Vehicle Categories */}
+          <div>
+            <h4 className="text-[14px] font-bold text-[#9E9E9E] mb-3">Vehicle Categories</h4>
+            <div className="flex flex-wrap gap-3">
+              {['Car', 'Bike', 'Scooter', 'Commercial'].map((cat, i) => (
+                <div key={cat} className={`px-4 py-2 rounded-lg border flex items-center gap-2 ${i === 0 ? 'bg-[#2664EB]/10 border-[#2664EB]' : 'bg-white border-[#E0E0E0]'}`}>
+                  <div className={`w-[18px] h-[18px] rounded-full flex items-center justify-center border ${i === 0 ? 'border-[#2664EB]' : 'border-[#9E9E9E]'}`}>
+                    {i === 0 && <div className="w-[10px] h-[10px] bg-[#2664EB] rounded-full" />}
+                  </div>
+                  <span className={`text-[12px] font-semibold ${i === 0 ? 'text-[#2664EB]' : 'text-black'}`}>{cat}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Current Status */}
+          <div>
+            <h4 className="text-[14px] font-bold text-[#9E9E9E] mb-3">Current Status</h4>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-[#627085] mb-1.5">Current Status</label>
+                <div className="relative">
+                  <select className="w-full px-3 py-3 bg-white rounded-lg border border-[#E0E0E0] text-[12px] font-semibold text-[#9E9E9E] appearance-none outline-none focus:border-[#2664EB]">
+                    <option>Select Current Status</option>
+                  </select>
+                  <ChevronDown size={20} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#627085] pointer-events-none" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button onClick={() => setIsEditOpen(false)} className="w-full bg-[#ED1D24] text-white py-3.5 rounded-[10px] text-[16px] font-bold mt-4 active:scale-95">Save Changes</button>
         </div>
       </BottomSheet>
 
@@ -525,8 +732,6 @@ const RmDealerView = () => {
            <button onClick={handleSetTarget} className="w-full bg-black text-white py-4 rounded-xl font-bold shadow-xl active:scale-95">Set Target for May</button>
         </div>
       </BottomSheet>
-
-      <div className="h-20" />
     </div>
   );
 };
