@@ -18,7 +18,8 @@ const VisitsView = () => {
   const [selectedDealer, setSelectedDealer] = useState('');
   const [visitPurpose, setVisitPurpose] = useState('Payment Collection');
   const [scheduleDate, setScheduleDate] = useState('Today');
-  const [scheduleTime, setScheduleTime] = useState('11:00 AM - 12:00 PM');
+  const [scheduleTime, setScheduleTime] = useState('');
+  const [paymentMode, setPaymentMode] = useState('Online');
 
   const stats = [
     { label: 'Total Visits', value: '45', color: 'text-[#F44336]' },
@@ -161,96 +162,165 @@ const VisitsView = () => {
             <motion.div 
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="relative bg-white rounded-t-[25px] flex flex-col max-h-[85vh] overflow-hidden w-full max-w-[430px]"
+              className="relative bg-white rounded-t-[25px] flex flex-col max-h-[90vh] overflow-hidden w-full max-w-[430px]"
             >
+              {/* Handle bar */}
+              <div className="flex justify-center pt-3 pb-2">
+                <div className="w-[40px] h-1 bg-[#D9D9D9] rounded-full" />
+              </div>
+
               {/* Header */}
-              <div className="p-4 border-b border-[#E0E0E0]">
-                <div className="w-[50px] h-1 bg-[#D9D9D9] rounded-full mx-auto mb-4" />
-                <div className="flex justify-between items-center px-1">
-                  <h3 className="text-base font-bold">Schedule Visit</h3>
-                  <button onClick={() => setIsScheduleOpen(false)} className="p-1 bg-[#F7F9FA] rounded-full">
-                    <X size={18} className="text-[#627085]" />
-                  </button>
-                </div>
+              <div className="flex justify-between items-center px-5 pb-4">
+                <h3 className="text-[18px] font-bold text-black">Schedule Visit</h3>
+                <button onClick={() => setIsScheduleOpen(false)} className="p-1">
+                  <X size={20} className="text-gray-500" />
+                </button>
               </div>
 
               {/* Content */}
-              <div className="flex-1 overflow-y-auto p-5 space-y-5">
+              <div className="flex-1 overflow-y-auto px-5 pb-6 no-scrollbar">
                 {/* Select Dealer */}
-                <div>
-                  <label className="text-xs font-semibold text-[#627085] mb-2 block">Select Dealer *</label>
-                  <select 
-                    value={selectedDealer}
-                    onChange={(e) => setSelectedDealer(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-3 text-sm focus:outline-none focus:border-[#D32F2F]"
-                  >
-                    <option value="">Choose a dealer</option>
-                    <option value="Modern Tyres & Service">Modern Tyres & Service</option>
-                    <option value="Super Wheel Care">Super Wheel Care</option>
-                    <option value="SAI RAM TYRES">SAI RAM TYRES</option>
-                  </select>
+                <div className="mb-4">
+                  <label className="block text-[14px] font-bold text-black mb-2">Select Dealer</label>
+                  <div className="relative">
+                    <select 
+                      value={selectedDealer}
+                      onChange={(e) => setSelectedDealer(e.target.value)}
+                      className="w-full h-[48px] px-4 border border-gray-200 rounded-full text-[14px] text-gray-400 appearance-none outline-none bg-white"
+                    >
+                      <option value="">Select RM</option>
+                      <option value="Modern Tyres & Service">Modern Tyres & Service</option>
+                      <option value="Super Wheel Care">Super Wheel Care</option>
+                      <option value="SAI RAM TYRES">SAI RAM TYRES</option>
+                    </select>
+                    <ChevronRight size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none rotate-90" />
+                  </div>
                 </div>
 
-                {/* Visit Purpose */}
-                <div>
-                  <label className="text-xs font-semibold text-[#627085] mb-2 block">Visit Purpose *</label>
-                  <div className="flex gap-2">
-                    {['Payment Collection', 'General Visit', 'Order Follow-up'].map((purpose) => (
+                {/* Select Reason */}
+                <div className="mb-4">
+                  <label className="block text-[14px] font-bold text-black mb-2">Select Reason</label>
+                  <div className="relative">
+                    <select 
+                      value={visitPurpose}
+                      onChange={(e) => setVisitPurpose(e.target.value)}
+                      className="w-full h-[48px] px-4 border border-gray-200 rounded-full text-[14px] text-black appearance-none outline-none bg-white"
+                    >
+                      <option value="Payment Collection">Payment  Collection</option>
+                      <option value="New Order">New Order</option>
+                      <option value="General Visit">General Visit</option>
+                      <option value="Order Follow-up">Order Follow-up</option>
+                    </select>
+                    <ChevronRight size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none rotate-90" />
+                  </div>
+                </div>
+
+                {/* Total Pending */}
+                <div className="bg-[#F8F9FA] rounded-xl p-4 mb-4">
+                  <div className="flex justify-between items-center mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[14px] font-bold text-gray-600">₹</span>
+                      <span className="text-[14px] font-semibold text-gray-700">Total Pending</span>
+                    </div>
+                    <span className="text-[16px] font-bold text-black">₹23,290</span>
+                  </div>
+
+                  {/* Collection Amount */}
+                  <label className="block text-[12px] text-[#627085] mb-1.5">Collection Amount(₹)</label>
+                  <div className="flex items-center bg-white border border-gray-200 rounded-lg px-3 h-[44px] mb-1">
+                    <span className="text-[14px] font-medium text-black">₹ 21,290</span>
+                    <div className="ml-auto text-right">
+                      <span className="text-[10px] text-gray-400 italic">Remaining Amount</span>
+                      <p className="text-[12px] font-bold text-[#ED1D24]">₹ 200</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Payment Mode */}
+                <div className="mb-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-[14px]">💳</span>
+                    <span className="text-[14px] font-semibold text-gray-700">Payment Mode</span>
+                  </div>
+                  <div className="flex gap-3">
+                    {['Online', 'Cash', 'Cheque'].map((mode) => (
                       <button
-                        key={purpose}
-                        onClick={() => setVisitPurpose(purpose)}
-                        className={`px-3 py-2 rounded-lg text-[11px] font-medium border ${
-                          visitPurpose === purpose 
-                            ? 'border-[#ED1D24] text-[#ED1D24] bg-red-50' 
-                            : 'border-gray-300 text-gray-600'
+                        key={mode}
+                        onClick={() => setPaymentMode(mode)}
+                        className={`px-5 py-2.5 rounded-full text-[13px] font-semibold ${
+                          paymentMode === mode
+                            ? 'bg-black text-white'
+                            : 'bg-white border border-gray-300 text-gray-600'
                         }`}
                       >
-                        {purpose}
+                        {mode}
                       </button>
                     ))}
                   </div>
                 </div>
 
                 {/* Select Date */}
-                <div>
-                  <label className="text-xs font-semibold text-[#627085] mb-2 block">Select Date *</label>
-                  <div className="flex gap-2">
-                    {['Today', 'Tomorrow', 'Custom'].map((date) => (
+                <div className="mb-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Calendar size={16} className="text-gray-600" />
+                    <span className="text-[14px] font-semibold text-gray-700">Select Date</span>
+                  </div>
+                  <div className="flex gap-3">
+                    {[
+                      { label: 'Today', sub: 'Wed, Jan 7' },
+                      { label: 'Tomorrow', sub: 'Thu, Jan 8' },
+                      { label: 'Friday', sub: 'Fri, Jan 9' },
+                    ].map((date) => (
                       <button
-                        key={date}
-                        onClick={() => setScheduleDate(date)}
-                        className={`flex-1 py-2.5 rounded-lg text-xs font-medium border ${
-                          scheduleDate === date 
-                            ? 'border-[#ED1D24] text-[#ED1D24] bg-red-50' 
-                            : 'border-gray-300 text-gray-600'
+                        key={date.label}
+                        onClick={() => setScheduleDate(date.label)}
+                        className={`flex-1 py-2 rounded-full text-center border ${
+                          scheduleDate === date.label
+                            ? 'border-[#ED1D24] text-[#ED1D24]'
+                            : 'border-gray-200 text-gray-500'
                         }`}
                       >
-                        {date}
+                        <span className="text-[12px] font-semibold block">{date.label}</span>
+                        <span className="text-[10px] block">{date.sub}</span>
                       </button>
                     ))}
                   </div>
                 </div>
 
                 {/* Select Time Slot */}
-                <div>
-                  <label className="text-xs font-semibold text-[#627085] mb-2 block">Select Time Slot *</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {['09:00 AM - 10:00 AM', '10:00 AM - 11:00 AM', '11:00 AM - 12:00 PM', '12:00 PM - 01:00 PM', '02:00 PM - 03:00 PM', '03:00 PM - 04:00 PM'].map((time) => (
+                <div className="mb-6">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Clock size={16} className="text-gray-600" />
+                    <span className="text-[14px] font-semibold text-gray-700">Select Time Slot</span>
+                  </div>
+                  <div className="space-y-2">
+                    {['1:00 PM - 3:00 PM', '1:00 PM - 3:00 PM', '1:00 PM - 3:00 PM'].map((time, i) => (
                       <button
-                        key={time}
-                        onClick={() => {}}
-                        className="py-2 rounded-lg text-[10px] font-medium border border-gray-300 text-gray-600"
+                        key={i}
+                        onClick={() => setScheduleTime(time + i)}
+                        className={`w-full flex items-center justify-between px-4 py-3 rounded-full border ${
+                          scheduleTime === time + i
+                            ? 'border-[#ED1D24]'
+                            : 'border-gray-200'
+                        }`}
                       >
-                        {time}
+                        <span className="text-[13px] font-medium text-black">{time}</span>
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                          scheduleTime === time + i ? 'border-[#ED1D24]' : 'border-gray-300'
+                        }`}>
+                          {scheduleTime === time + i && (
+                            <div className="w-2.5 h-2.5 rounded-full bg-[#ED1D24]" />
+                          )}
+                        </div>
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* Confirm Button */}
+                {/* Confirm Schedule Button */}
                 <button 
                   onClick={() => setIsScheduleOpen(false)}
-                  className="w-full bg-[#ED1D24] text-white py-3.5 rounded-lg text-sm font-semibold mt-2 active:scale-95"
+                  className="w-full bg-[#ED1D24] text-white py-4 rounded-full text-[15px] font-bold active:scale-[0.98] transition-transform"
                 >
                   Confirm Schedule
                 </button>

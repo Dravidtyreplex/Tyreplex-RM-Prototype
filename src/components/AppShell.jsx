@@ -84,7 +84,8 @@ const AppShell = ({ children }) => {
   const navigate = useNavigate();
   
   const isLoginPage = location.pathname === '/login';
-  const isMainPage = ['/dashboard', '/visits', '/ask-quote'].includes(location.pathname);
+  const showAppBar = ['/dashboard'].includes(location.pathname);
+  const showBottomNav = ['/dashboard', '/visits'].includes(location.pathname);
 
   const handleBottomNavChange = (index) => {
     setBottomNavIndex(index);
@@ -96,8 +97,8 @@ const AppShell = ({ children }) => {
   return (
     <div className="min-h-screen bg-gray-200 flex justify-center items-start overflow-hidden">
       <div className="relative w-full max-w-[430px] h-[100vh] bg-white shadow-2xl overflow-hidden flex flex-col">
-        {/* AppBar - only shows on main pages (Dashboard, Visits, Ask Quote) */}
-        {isMainPage && (
+        {/* AppBar - only shows on Dashboard */}
+        {showAppBar && (
           <header className="bg-white h-14 flex items-center justify-between px-4 border-b shrink-0">
             <h1 className="text-[#D32F2F] text-lg font-medium">Tyreplex RM</h1>
             <div className="flex items-center space-x-2">
@@ -129,7 +130,7 @@ const AppShell = ({ children }) => {
         </main>
 
         {/* Bottom Nav - only shows on main pages */}
-        {isMainPage && (
+        {showBottomNav && (
           <BottomNav 
             selectedIndex={bottomNavIndex} 
             onSelect={handleBottomNavChange}

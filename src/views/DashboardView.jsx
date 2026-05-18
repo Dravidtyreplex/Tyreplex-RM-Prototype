@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -28,6 +28,70 @@ const ICONS = {
 
 const DashboardView = () => {
   const navigate = useNavigate();
+  
+  // Dialog state
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogTitle, setDialogTitle] = useState('');
+  const [dialogColumns, setDialogColumns] = useState([]);
+  const [dialogRows, setDialogRows] = useState([]);
+
+  // Dialog data for each clickable stat
+  const dialogData = {
+    'Total Orders': {
+      columns: ['Dealer Name', 'Order ID', 'Total Amount'],
+      rows: [
+        ['Modern Tyres & Service', 'ORD-89234', '₹12,400'],
+        ['Super Wheel Care', 'ORD-89210', '₹42,000'],
+        ['Amit Tyres', 'ORD-89198', '₹8,500'],
+      ],
+    },
+    'Fully Paid': {
+      columns: ['Dealer Name', 'Order ID', 'Amount Paid'],
+      rows: [
+        ['Modern Tyres & Service', 'ORD-89234', '₹12,400'],
+        ['Sharma Auto', 'ORD-89180', '₹15,200'],
+      ],
+    },
+    'Collection Pending': {
+      columns: ['Dealer Name', 'Order ID', 'Amount Pending'],
+      rows: [
+        ['Super Wheel Care', 'ORD-89210', '₹42,000'],
+        ['Lucky Tyre House', 'ORD-89150', '₹18,000'],
+      ],
+    },
+    'Unique Txn Dealer': {
+      columns: ['Dealer Name', 'Dealer ID'],
+      rows: [
+        ['Modern Tyres & Service', '20456'],
+        ['Super Wheel Care', '20489'],
+        ['Amit Tyres', '30100'],
+      ],
+    },
+    'Unique Non Txn Dealer': {
+      columns: ['Dealer Name', 'Dealer ID'],
+      rows: [
+        ['P N TRADERS', '173323'],
+        ['Yash Tyre', '37110'],
+        ['Malhotra motors', '37078'],
+        ['Punjab Tyre', '37007'],
+        ['LUXURY WHEELZ', '36975'],
+        ['TYRE MASTERS', '36933'],
+        ['ANAV ENTERPRISES', '36851'],
+        ['MYTYREPOINT AND ACCESSORIES', '36747'],
+        ['Tyreplex Technologies And Commerce Pvt Ltd', '36710'],
+      ],
+    },
+  };
+
+  const openDialog = (statTitle) => {
+    const data = dialogData[statTitle];
+    if (data) {
+      setDialogTitle(statTitle);
+      setDialogColumns(data.columns);
+      setDialogRows(data.rows);
+      setDialogOpen(true);
+    }
+  };
   
   // Month navigation - matches Flutter: starts at current month, can go back 3 months
   const [monthCount, setMonthCount] = useState(3);
@@ -173,13 +237,22 @@ const DashboardView = () => {
           <div className="w-[60%] pl-4 space-y-2">
             <div className="grid grid-cols-2 gap-2">
               {currentData.stats.slice(0, 6).map((stat, i) => (
-                <div key={i} className="bg-[#9DD1EE]/20 p-2 rounded-[5px] flex flex-col items-center text-center">
+                <div 
+                  key={i} 
+                  onClick={() => openDialog(stat.title)}
+                  className={`bg-[#9DD1EE]/20 p-2 rounded-[5px] flex flex-col items-center text-center ${
+                    dialogData[stat.title] ? 'cursor-pointer active:scale-95 transition-transform' : ''
+                  }`}
+                >
                   <span className="text-[9px] text-gray-700 leading-tight h-6 flex items-center">{stat.title}</span>
                   <span className="text-xs font-bold mt-1">{stat.value}</span>
                 </div>
               ))}
             </div>
-            <div className="bg-[#9DD1EE]/20 p-2 rounded-[5px] flex flex-col items-center text-center w-full">
+            <div 
+              onClick={() => openDialog(currentData.stats[6].title)}
+              className="bg-[#9DD1EE]/20 p-2 rounded-[5px] flex flex-col items-center text-center w-full cursor-pointer active:scale-95 transition-transform"
+            >
               <span className="text-[9px] text-gray-700">{currentData.stats[6].title}</span>
               <span className="text-xs font-bold mt-1">{currentData.stats[6].value}</span>
             </div>
@@ -214,6 +287,72 @@ const DashboardView = () => {
 
       {/* Spacing for bottom nav */}
       <div className="h-20" />
+
+      {/* Stats Dialog Modal */}
+      <AnimatePresence>
+        {dialogOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center"
+          >
+            {/* Backdrop */}
+            <div className="absolute inset-0 bg-black/40" onClick={() => setDialogOpen(false)} />
+            
+            {/* Dialog */}
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative bg-white rounded-lg shadow-xl mx-6 p-5 max-w-[360px] w-full max-h-[70vh] flex flex-col"
+            >
+              {/* Title */}
+              <h2 className="text-[18px] font-bold text-black mb-4">{dialogTitle}</h2>
+
+              {/* Table */}
+              <div className="flex-1 overflow-y-auto border border-gray-300">
+                {/* Table Header */}
+                <div className="grid border-b border-gray-300 bg-white sticky top-0" style={{ gridTemplateColumns: `repeat(${dialogColumns.length}, 1fr)` }}>
+                  {dialogColumns.map((col, i) => (
+                    <div key={i} className="px-3 py-2 text-[12px] font-bold text-black border-r border-gray-300 last:border-r-0">
+                      {col}
+                    </div>
+                  ))}
+                </div>
+                {/* Table Rows */}
+                {dialogRows.length > 0 ? (
+                  dialogRows.map((row, rowIndex) => (
+                    <div 
+                      key={rowIndex} 
+                      className="grid border-b border-gray-300 last:border-b-0"
+                      style={{ gridTemplateColumns: `repeat(${dialogColumns.length}, 1fr)` }}
+                    >
+                      {row.map((cell, cellIndex) => (
+                        <div key={cellIndex} className="px-3 py-2 text-[12px] text-black border-r border-gray-300 last:border-r-0">
+                          {cell}
+                        </div>
+                      ))}
+                    </div>
+                  ))
+                ) : (
+                  <div className="px-3 py-4 text-[12px] text-gray-400 text-center">No data available</div>
+                )}
+              </div>
+
+              {/* Close button */}
+              <div className="flex justify-end mt-4">
+                <button 
+                  onClick={() => setDialogOpen(false)}
+                  className="text-[#D32F2F] text-[15px] font-medium"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

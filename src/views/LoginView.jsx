@@ -10,9 +10,9 @@ const LoginView = () => {
     if (value.length <= 10) {
       setMobileNumber(value);
       if (value.length === 10) {
-        // Mimic Flutter's behavior of auto-calling getOtp
+        // After entering number, go to Master RM screen
         setTimeout(() => {
-          navigate('/dashboard');
+          navigate('/master-rm');
         }, 500);
       }
     }

@@ -1,95 +1,92 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronDown } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 
 const MasterRmView = () => {
   const navigate = useNavigate();
   const [selectedCity, setSelectedCity] = useState('');
   const [selectedRM, setSelectedRM] = useState('');
-  const [isCityOpen, setIsCityOpen] = useState(false);
-  const [isRMOpen, setIsRMOpen] = useState(false);
 
   // Mock data matching Flutter's city and RM list from API
   const cities = ['Delhi', 'Mumbai', 'Bangalore', 'Chennai', 'Hyderabad', 'Pune', 'Kolkata'];
-  const rmList = ['Rahul Sharma', 'Amit Kumar', 'Priya Singh', 'Vikash Gupta', 'Suresh Patel'];
+  const rmList = ['AnoopSingh', 'Rahul Sharma', 'Amit Kumar', 'Priya Singh', 'Vikash Gupta', 'Suresh Patel'];
 
-  const handleSetTarget = () => {
-    if (selectedRM) {
+  const handleSubmit = () => {
+    if (selectedCity && selectedRM) {
       navigate('/dashboard');
     }
   };
 
   return (
     <div className="flex flex-col h-full bg-white">
-      {/* AppBar - matches Flutter */}
-      <div className="bg-white h-14 flex items-center px-4 border-b">
-        <button onClick={() => navigate(-1)} className="mr-3" aria-label="Go back">
-          <ChevronLeft size={21} className="text-[#D32F2F]" />
-        </button>
-        <h1 className="text-base font-medium">Master RM</h1>
-      </div>
+      {/* Header - "Master RM" in red, no back arrow, with bottom border */}
+      <header className="bg-white px-4 pt-6 pb-3 border-b border-gray-200">
+        <h1 className="text-[#D32F2F] text-[18px] font-bold">Master RM</h1>
+      </header>
 
-      {/* Body - matches Flutter's dropdown layout */}
-      <div className="flex-1 p-4 mt-4">
-        {/* City Dropdown */}
-        <div className="mb-6">
-          <div 
-            onClick={() => setIsCityOpen(!isCityOpen)}
-            className="border border-[#D8D8D8] rounded px-3 py-3 flex items-center justify-between cursor-pointer"
-          >
-            <span className={`text-sm ${selectedCity ? 'text-gray-800' : 'text-gray-400'}`}>
-              {selectedCity || 'Select City *'}
-            </span>
-            <ChevronDown size={18} className="text-gray-400" />
-          </div>
-          {isCityOpen && (
-            <div className="border border-gray-200 rounded mt-1 max-h-48 overflow-y-auto shadow-sm">
+      {/* Body */}
+      <div className="flex-1 px-5 pt-8">
+        {/* Select City - always visible */}
+        <div className="mb-5">
+          <div className="relative">
+            <select
+              className="w-full h-[52px] px-4 border border-gray-300 rounded-md text-[15px] text-black appearance-none outline-none focus:border-gray-400 bg-white"
+              value={selectedCity}
+              onChange={(e) => {
+                setSelectedCity(e.target.value);
+                setSelectedRM(''); // Reset RM when city changes
+              }}
+            >
+              <option value="" disabled>Select City *</option>
               {cities.map((city) => (
-                <div
-                  key={city}
-                  onClick={() => { setSelectedCity(city); setIsCityOpen(false); }}
-                  className="px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer active:bg-gray-100"
-                >
-                  {city}
-                </div>
+                <option key={city} value={city}>{city}</option>
               ))}
-            </div>
-          )}
-        </div>
-
-        {/* RM Dropdown */}
-        <div className="mb-6">
-          <div 
-            onClick={() => setIsRMOpen(!isRMOpen)}
-            className="border border-[#D8D8D8] rounded px-3 py-3 flex items-center justify-between cursor-pointer"
-          >
-            <span className={`text-sm ${selectedRM ? 'text-gray-800' : 'text-gray-400'}`}>
-              {selectedRM || 'Select RM *'}
-            </span>
-            <ChevronDown size={18} className="text-gray-400" />
+            </select>
+            <ChevronDown size={20} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            {/* Floating label */}
+            {selectedCity && (
+              <label className="absolute -top-2.5 left-3 bg-white px-1 text-[11px] text-gray-500">
+                Select City <span className="text-[#D32F2F]">*</span>
+              </label>
+            )}
+            {!selectedCity && (
+              <label className="absolute -top-2.5 left-3 bg-white px-1 text-[11px] text-gray-500">
+                Select City <span className="text-[#D32F2F]">*</span>
+              </label>
+            )}
           </div>
-          {isRMOpen && (
-            <div className="border border-gray-200 rounded mt-1 max-h-48 overflow-y-auto shadow-sm">
-              {rmList.map((rm) => (
-                <div
-                  key={rm}
-                  onClick={() => { setSelectedRM(rm); setIsRMOpen(false); }}
-                  className="px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer active:bg-gray-100"
-                >
-                  {rm}
-                </div>
-              ))}
-            </div>
-          )}
         </div>
 
-        {/* Set Target Button */}
-        {selectedRM && (
+        {/* Select RM - only visible after city is selected */}
+        {selectedCity && (
+          <div className="mb-8">
+            <div className="relative">
+              <select
+                className="w-full h-[52px] px-4 border border-gray-300 rounded-md text-[15px] text-black appearance-none outline-none focus:border-gray-400 bg-white"
+                value={selectedRM}
+                onChange={(e) => setSelectedRM(e.target.value)}
+              >
+                <option value="" disabled>Select RM *</option>
+                {rmList.map((rm) => (
+                  <option key={rm} value={rm}>{rm}</option>
+                ))}
+              </select>
+              <ChevronDown size={20} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              {/* Floating label */}
+              <label className="absolute -top-2.5 left-3 bg-white px-1 text-[11px] text-gray-500">
+                Select RM <span className="text-[#D32F2F]">*</span>
+              </label>
+            </div>
+          </div>
+        )}
+
+        {/* Submit button - only visible after both city and RM are selected */}
+        {selectedCity && selectedRM && (
           <button
-            onClick={handleSetTarget}
-            className="w-full bg-[#D32F2F] text-white py-3 rounded-full text-sm font-medium mt-4"
+            onClick={handleSubmit}
+            className="w-full bg-[#ED1D24] text-white font-bold text-[16px] py-4 rounded-lg active:scale-[0.98] transition-transform"
           >
-            Set Target
+            Submit
           </button>
         )}
       </div>
