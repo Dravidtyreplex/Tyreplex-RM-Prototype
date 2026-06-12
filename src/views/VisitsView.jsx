@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -289,11 +289,20 @@ const VisitsView = () => {
   const [loggedPayments, setLoggedPayments] = useState({});
   const [punchInTimes, setPunchInTimes] = useState({});
 
+  const [collapsedHistoryDates, setCollapsedHistoryDates] = useState({});
+
+  const toggleHistoryCollapse = (dateKey) => {
+    setCollapsedHistoryDates(prev => ({
+      ...prev,
+      [dateKey]: !prev[dateKey]
+    }));
+  };
+
   // Grouped days of visits
   const [days, setDays] = useState([
     {
       id: 'today',
-      title: 'Today, Nov 23',
+      title: 'Today, Jan 7',
       visitsCount: 3,
       isCollapsed: false,
       visits: [
@@ -328,8 +337,8 @@ const VisitsView = () => {
     },
     {
       id: 'tomorrow',
-      title: 'Tomorrow, Nov 24',
-      visitsCount: 5,
+      title: 'Tomorrow, Jan 8',
+      visitsCount: 3,
       isCollapsed: true,
       visits: [
         {
@@ -360,6 +369,13 @@ const VisitsView = () => {
           distance: null
         }
       ]
+    },
+    {
+      id: 'day_after_tomorrow',
+      title: 'Day After Tomorrow, Jan 9',
+      visitsCount: 0,
+      isCollapsed: true,
+      visits: []
     }
   ]);
 
@@ -462,23 +478,46 @@ const VisitsView = () => {
     setIsLogPaymentOpen(false);
   };
 
-  // End Visit (Punch Out)
+  // End Visit (Punch Out) - keeps card in schedule as Completed (grayed out)
   const handlePunchOut = (visitId) => {
-    let completedVisit = null;
     const lp = loggedPayments[visitId];
+    const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     
-    // Find in days list
-    let visitFound = false;
     const updatedDays = days.map(day => {
       const v = day.visits.find(visit => visit.id === visitId);
       if (v) {
+        const updatedVisits = day.visits.map(visit =>
+          visit.id === visitId
+            ? {
+                ...visit,
+                status: 'Completed',
+                completedTime: now,
+                collected: lp ? `₹${parseInt(lp.amount).toLocaleString('en-IN')}` : null,
+                paymentStatus: lp ? 'paid' : 'unpaid',
+              }
+            : visit
+        );
+        const recalculated = recalculatedDistances(updatedVisits);
+        return { ...day, visits: recalculated };
+      }
+      return day;
+    });
+
+    setDays(updatedDays);
+    setPunchedInVisitId(null);
+  };
+
+  // Move completed visit to history (manual end of day action)
+  // Move completed visit to history (manual or auto end-of-day)
+  const handleMoveToHistory = (visitId) => {
+    let completedVisit = null;
+    let visitFound = false;
+    const updatedDays = days.map(day => {
+      const v = day.visits.find(visit => visit.id === visitId);
+      if (v && v.status === 'Completed') {
         completedVisit = {
           ...v,
-          status: 'Completed',
           date: day.title.split(', ')[1] || 'Today',
-          collected: lp ? `₹${parseInt(lp.amount).toLocaleString('en-IN')}` : null,
-          paymentStatus: lp ? 'paid' : 'unpaid',
-          completedTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         };
         visitFound = true;
         const filteredVisits = day.visits.filter(visit => visit.id !== visitId);
@@ -492,16 +531,48 @@ const VisitsView = () => {
       return day;
     });
 
-    if (visitFound) {
+    if (visitFound && completedVisit) {
       setDays(updatedDays);
-      if (completedVisit) {
-        setHistoryVisits([completedVisit, ...historyVisits]);
-      }
+      setHistoryVisits(prev => [completedVisit, ...prev]);
     }
-
-    setPunchedInVisitId(null);
-    setActiveTab(1); // Redirect to History
   };
+
+  // Auto-transfer ALL Completed visits to History at midnight
+  useEffect(() => {
+    const scheduleAutoTransfer = () => {
+      const now = new Date();
+      const midnight = new Date();
+      midnight.setHours(24, 0, 0, 0); // next midnight
+      const msUntilMidnight = midnight - now;
+
+      return setTimeout(() => {
+        // Collect all completed visits from all days
+        const completed = [];
+        setDays(prevDays =>
+          prevDays.map(day => {
+            const completedVisits = day.visits.filter(v => v.status === 'Completed');
+            completedVisits.forEach(v =>
+              completed.push({ ...v, date: day.title.split(', ')[1] || 'Today' })
+            );
+            const remaining = day.visits.filter(v => v.status !== 'Completed');
+            const recalculated = recalculatedDistances(remaining);
+            return {
+              ...day,
+              visitsCount: Math.max(0, remaining.length),
+              visits: recalculated
+            };
+          })
+        );
+        if (completed.length > 0) {
+          setHistoryVisits(prev => [...completed, ...prev]);
+        }
+      }, msUntilMidnight);
+    };
+
+    const timerId = scheduleAutoTransfer();
+    return () => clearTimeout(timerId);
+  }, []);
+
 
   // Cancel Visit Action
   const handleCancelVisit = (visitId) => {
@@ -576,18 +647,25 @@ const VisitsView = () => {
   };
 
   const loadStopsForDate = (dateLabel) => {
-    const targetDayId = dateLabel === 'Today' ? 'today' : 'tomorrow';
+    const targetDayId = dateLabel === 'Today' ? 'today' : dateLabel === 'Tomorrow' ? 'tomorrow' : 'day_after_tomorrow';
     const day = days.find(d => d.id === targetDayId);
     if (day && day.visits) {
       const loaded = day.visits.map(v => ({
         id: v.id,
         name: v.name,
+        locality: v.locality,
         reason: v.type,
         time: v.time
       }));
       setStackedStops(loaded);
+      if (loaded.length === 0) {
+        setShowManualForm(true);
+      } else {
+        setShowManualForm(false);
+      }
     } else {
       setStackedStops([]);
+      setShowManualForm(true);
     }
   };
 
@@ -646,7 +724,7 @@ const VisitsView = () => {
       visitsToAdd.push({
         id: stop.id,
         name: stop.name,
-        locality: getLocality(stop.name),
+        locality: stop.locality || getLocality(stop.name),
         time: stop.time,
         type: stop.reason,
         status: 'Scheduled',
@@ -670,7 +748,7 @@ const VisitsView = () => {
     }
 
     // Replace target day's visits with the newly planned route
-    const targetDayId = scheduleDate === 'Today' ? 'today' : 'tomorrow';
+    const targetDayId = scheduleDate === 'Today' ? 'today' : scheduleDate === 'Tomorrow' ? 'tomorrow' : 'day_after_tomorrow';
     setDays(days.map(day => {
       if (day.id === targetDayId) {
         const recalculated = recalculatedDistances(visitsToAdd);
@@ -754,31 +832,35 @@ const VisitsView = () => {
           <div className="space-y-4">
             <h2 className="text-slate-500 text-sm font-bold pl-1">Schedule</h2>
 
-            {days.map((day) => {
+            {days.filter(day => day.visits.length > 0).map((day) => {
               const hasPunchedInInside = day.visits.some(v => v.id === punchedInVisitId);
               
               return (
-                <div key={day.id} className="bg-white rounded-2xl overflow-hidden shadow-[0_4px_25px_rgba(0,0,0,0.02)] border border-slate-100">
+                <div key={day.id} className="bg-white rounded-2xl overflow-hidden shadow-[0_4px_25px_rgba(0,0,0,0.02)] border border-slate-100 hover:shadow-xs transition-shadow duration-200">
                   {/* Collapsible Header */}
                   <div 
                     onClick={() => toggleDayCollapse(day.id)}
                     className="flex items-center justify-between px-4 py-3.5 bg-white cursor-pointer active:bg-slate-50/50 transition-colors"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-7 h-7 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center">
-                        <Calendar size={14} className="text-slate-500" />
-                      </div>
-                      <span className="text-[13px] font-extrabold text-slate-800">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      {/* Calendar icon */}
+                      <Calendar size={16} className="text-slate-400 shrink-0" />
+
+
+                      <span className="text-[13.5px] font-extrabold text-slate-800">
                         {day.title}
                       </span>
-                      <span className="bg-slate-100 text-slate-600 text-[10px] font-semibold px-2 py-0.5 rounded-full">
-                        {day.visitsCount} Visit
-                      </span>
-                      {day.visits.length > 0 && (
-                        <span className="bg-slate-100 text-slate-600 text-[10px] font-semibold px-2 py-0.5 rounded-full">
-                          {getDayRouteDistance(day.visits)} KM
+                      
+                      <div className="flex items-center gap-1.5">
+                        <span className="bg-slate-50 border border-slate-200/60 text-slate-600 text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-3xs">
+                          {day.visitsCount} {day.visitsCount === 1 ? 'Visit' : 'Visits'}
                         </span>
-                      )}
+                        {day.visits.length > 0 && (
+                          <span className="bg-slate-50 border border-slate-200/60 text-slate-600 text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-3xs">
+                            {getDayRouteDistance(day.visits)} KM
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <ChevronDown 
                       size={16} 
@@ -790,176 +872,231 @@ const VisitsView = () => {
 
                   {!day.isCollapsed && (
                     <div className="px-4 pb-4 pt-2 bg-white">
-                      <Reorder.Group 
-                        axis="y" 
-                        values={day.visits} 
-                        onReorder={(newOrder) => handleReorderVisits(day.id, newOrder)}
-                        className="space-y-3"
-                      >
-                        {day.visits.map((visit, index) => {
-                          const isPunchedIn = punchedInVisitId === visit.id;
-                          const isAnyPunchedIn = punchedInVisitId !== null;
+                      {day.visits.length > 0 ? (
+                        <Reorder.Group 
+                          axis="y" 
+                          values={day.visits} 
+                          onReorder={(newOrder) => handleReorderVisits(day.id, newOrder)}
+                          className="space-y-3"
+                        >
+                          {day.visits.map((visit, index) => {
+                            const isPunchedIn = punchedInVisitId === visit.id;
+                            const isAnyPunchedIn = punchedInVisitId !== null;
 
-                          return (
-                            <Reorder.Item 
-                              key={visit.id} 
-                              value={visit}
-                              className="relative animate-none"
-                            >
-                              <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-xs relative cursor-grab active:cursor-grabbing">
-                                <div className="flex justify-between items-start mb-2">
-                                  {/* Left side: Grip, Large Number, Badges */}
-                                  <div className="flex items-center gap-3">
-                                    <div className="flex items-center gap-1">
-                                      {/* Drag Grip Handle */}
-                                      <div className="p-1 -ml-1 text-slate-355 hover:text-slate-500 transition-colors flex items-center justify-center cursor-grab active:cursor-grabbing">
-                                        <GripVertical size={16} className="stroke-[2.5]" />
+                            return (
+                              <Reorder.Item 
+                                key={visit.id} 
+                                value={visit}
+                                className="relative animate-none"
+                              >
+                                <div className={`rounded-2xl p-5 border shadow-xs relative ${
+                                  visit.status === 'Completed'
+                                    ? 'bg-slate-50/60 border-slate-100 cursor-default opacity-75'
+                                    : 'bg-white border-slate-100 cursor-grab active:cursor-grabbing'
+                                }`}>
+                                  <div className="flex justify-between items-start mb-2">
+                                    {/* Left side: Grip, Large Number, Badges */}
+                                    <div className="flex items-center gap-3">
+                                      <div className="flex items-center gap-1">
+                                        {/* Drag Grip Handle */}
+                                        <div className="p-1 -ml-1 text-slate-355 hover:text-slate-500 transition-colors flex items-center justify-center cursor-grab active:cursor-grabbing">
+                                          <GripVertical size={16} className="stroke-[2.5]" />
+                                        </div>
+
+                                        {/* Large Minimalist Number */}
+                                        <span className="text-[20px] font-black text-slate-300 font-mono leading-none tracking-tight">
+                                          0{index + 1}
+                                        </span>
                                       </div>
 
-                                      {/* Large Minimalist Number */}
-                                      <span className="text-[20px] font-black text-slate-300 font-mono leading-none tracking-tight">
-                                        0{index + 1}
+                                      {/* Type badge */}
+                                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                                        visit.status === 'Completed'
+                                          ? 'bg-slate-100 border-slate-200 text-slate-400'
+                                          : 'bg-orange-50/80 border-orange-100 text-orange-700'
+                                      }`}>
+                                        {visit.type}
                                       </span>
+                                      {isPunchedIn && (
+                                        <span className="bg-emerald-50 border border-emerald-100 text-emerald-700 text-[10px] font-extrabold px-2 py-0.5 rounded-md flex items-center gap-1 animate-pulse">
+                                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                          Active Visit
+                                        </span>
+                                      )}
+                                    </div>
+                                    
+                                    {/* Right side: Menu — hidden for completed visits */}
+                                    <div className="relative">
+                                      <button
+                                        type="button"
+                                        disabled={visit.status === 'Completed'}
+                                        onClick={() => setActiveMenuId(activeMenuId === visit.id ? null : visit.id)}
+                                        className={`p-1 rounded-full transition-colors flex items-center justify-center ${
+                                          visit.status === 'Completed'
+                                            ? 'text-slate-200 cursor-not-allowed'
+                                            : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+                                        }`}
+                                      >
+                                        <MoreVertical size={16} />
+                                      </button>
+                                        
+                                        <AnimatePresence>
+                                          {activeMenuId === visit.id && visit.status !== 'Completed' && (
+                                            <>
+                                              <div className="fixed inset-0 z-20" onClick={() => setActiveMenuId(null)} />
+                                              <motion.div
+                                                initial={{ opacity: 0, scale: 0.95, y: -5 }}
+                                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                exit={{ opacity: 0, scale: 0.95, y: -5 }}
+                                                transition={{ duration: 0.1 }}
+                                                className="absolute right-0 mt-1 w-44 bg-white rounded-xl shadow-lg border border-slate-100 py-1 z-30 overflow-hidden"
+                                              >
+                                                <button
+                                                  onClick={() => {
+                                                    navigate('/dealer-detail');
+                                                    setActiveMenuId(null);
+                                                  }}
+                                                  className="w-full text-left px-4 py-2.5 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2 border-b border-slate-50 font-medium"
+                                                >
+                                                  <Eye size={13} className="text-slate-400" />
+                                                  View Dealer Details
+                                                </button>
+                                                <button
+                                                  onClick={() => handleCancelVisit(visit.id)}
+                                                  className="w-full text-left px-4 py-2.5 text-xs text-red-600 hover:bg-red-50 flex items-center gap-2 font-medium"
+                                                >
+                                                  <X size={13} className="text-red-400" />
+                                                  Cancel Visit
+                                                </button>
+                                              </motion.div>
+                                            </>
+                                          )}
+                                        </AnimatePresence>
+                                      </div>
                                     </div>
 
-                                    {/* Type badge */}
-                                    <span className="bg-orange-50/80 border border-orange-100 text-orange-700 text-[10px] font-bold px-2 py-0.5 rounded-md">
-                                      {visit.type}
+                                  {/* Time line with clock */}
+                                  <div className="flex items-center gap-1.5 text-slate-400 mt-2">
+                                    <Clock size={13} />
+                                    <span className="text-[11px] font-medium text-slate-400">
+                                      {visit.time.replace(' - ', '- ')}{isPunchedIn && punchInTimes[visit.id] ? ` • Punched in at ${punchInTimes[visit.id]}` : ''}
                                     </span>
-                                    {isPunchedIn && (
-                                      <span className="bg-emerald-50 border border-emerald-100 text-emerald-700 text-[10px] font-extrabold px-2 py-0.5 rounded-md flex items-center gap-1 animate-pulse">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                        Active Visit
-                                      </span>
-                                    )}
                                   </div>
-                                  
-                                  {/* Right side: Menu */}
-                                  <div className="relative">
-                                    <button
-                                      type="button"
-                                      onClick={() => setActiveMenuId(activeMenuId === visit.id ? null : visit.id)}
-                                      className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-50 transition-colors flex items-center justify-center"
-                                    >
-                                      <MoreVertical size={16} />
-                                    </button>
-                                      
-                                      <AnimatePresence>
-                                        {activeMenuId === visit.id && (
-                                          <>
-                                            <div className="fixed inset-0 z-20" onClick={() => setActiveMenuId(null)} />
-                                            <motion.div
-                                              initial={{ opacity: 0, scale: 0.95, y: -5 }}
-                                              animate={{ opacity: 1, scale: 1, y: 0 }}
-                                              exit={{ opacity: 0, scale: 0.95, y: -5 }}
-                                              transition={{ duration: 0.1 }}
-                                              className="absolute right-0 mt-1 w-44 bg-white rounded-xl shadow-lg border border-slate-100 py-1 z-30 overflow-hidden"
-                                            >
-                                              <button
-                                                onClick={() => {
-                                                  navigate('/dealer-detail');
-                                                  setActiveMenuId(null);
-                                                }}
-                                                className="w-full text-left px-4 py-2.5 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2 border-b border-slate-50 font-medium"
-                                              >
-                                                <Eye size={13} className="text-slate-400" />
-                                                View Dealer Details
-                                              </button>
-                                              <button
-                                                onClick={() => handleEditVisit(visit.id)}
-                                                className="w-full text-left px-4 py-2.5 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2 border-b border-slate-50 font-medium"
-                                              >
-                                                <Pencil size={13} className="text-slate-400" />
-                                                Edit Visit Details
-                                              </button>
-                                              <button
-                                                onClick={() => handleCancelVisit(visit.id)}
-                                                className="w-full text-left px-4 py-2.5 text-xs text-red-600 hover:bg-red-50 flex items-center gap-2 font-medium"
-                                              >
-                                                <X size={13} className="text-red-400" />
-                                                Cancel Visit
-                                              </button>
-                                            </motion.div>
-                                          </>
-                                        )}
-                                      </AnimatePresence>
+
+                                  {/* Dealer Name */}
+                                  <h3 className="font-bold text-sm text-black leading-snug mt-2">
+                                    {visit.name.toUpperCase()}
+                                  </h3>
+                                  <p className="text-slate-400 text-xs font-semibold mt-1">
+                                    ({visit.locality})
+                                  </p>
+
+                                  {/* Logged Payment Banner */}
+                                  {loggedPayments[visit.id] && (
+                                    <div className="mt-3 bg-emerald-50 border border-emerald-100 text-emerald-800 rounded-xl p-2.5 flex items-center justify-between text-[11px] font-bold">
+                                      <span className="text-emerald-600">Payment Logged:</span>
+                                      <span>₹{parseInt(loggedPayments[visit.id].amount).toLocaleString('en-IN')} ({loggedPayments[visit.id].mode})</span>
                                     </div>
-                                  </div>
-
-                                {/* Time line with clock */}
-                                <div className="flex items-center gap-1.5 text-slate-400 mt-2">
-                                  <Clock size={13} />
-                                  <span className="text-[11px] font-medium text-slate-400">
-                                    {visit.time.replace(' - ', '- ')}{isPunchedIn && punchInTimes[visit.id] ? ` • Punched in at ${punchInTimes[visit.id]}` : ''}
-                                  </span>
-                                </div>
-
-                                {/* Dealer Name */}
-                                <h3 className="font-bold text-sm text-black leading-snug mt-2">
-                                  {visit.name.toUpperCase()}
-                                </h3>
-                                <p className="text-slate-400 text-xs font-semibold mt-1">
-                                  ({visit.locality})
-                                </p>
-
-                                {/* Logged Payment Banner */}
-                                {loggedPayments[visit.id] && (
-                                  <div className="mt-3 bg-emerald-50 border border-emerald-100 text-emerald-800 rounded-xl p-2.5 flex items-center justify-between text-[11px] font-bold">
-                                    <span className="text-emerald-600">Payment Logged:</span>
-                                    <span>₹{parseInt(loggedPayments[visit.id].amount).toLocaleString('en-IN')} ({loggedPayments[visit.id].mode})</span>
-                                  </div>
-                                )}
-
-                                {/* Actions Row */}
-                                <div className="flex gap-3 mt-4">
-                                  {isPunchedIn ? (
-                                    <button 
-                                      type="button"
-                                      onClick={() => handleOpenLogPayment(visit)}
-                                      className="flex-1 py-2 rounded-full border border-[#ED1D24] text-[#ED1D24] text-xs font-bold hover:bg-red-50/20 flex items-center justify-center gap-1.5 transition-colors"
-                                    >
-                                      <CreditCard size={13} className="text-[#ED1D24]" />
-                                      Add Payment
-                                    </button>
-                                  ) : (
-                                    <button type="button" className="flex-1 py-2 rounded-full border border-slate-200 text-slate-500 text-xs font-bold hover:bg-slate-50 flex items-center justify-center gap-1.5 transition-colors">
-                                      <Navigation size={13} className="rotate-45 text-slate-400" />
-                                      Navigate
-                                    </button>
                                   )}
 
-                                  <button
-                                    type="button"
-                                    onClick={() => isPunchedIn ? handlePunchOut(visit.id) : handlePunchIn(visit.id)}
-                                    disabled={!isPunchedIn && isAnyPunchedIn}
-                                    className={`flex-1 py-2 rounded-full text-xs font-bold transition-all active:scale-[0.98] ${
-                                      isPunchedIn
-                                        ? 'bg-[#ED1D24] text-white hover:bg-red-600'
-                                        : isAnyPunchedIn
-                                          ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                                          : 'bg-[#ED1D24] text-white hover:bg-red-600'
-                                    }`}
-                                  >
-                                    {isPunchedIn ? 'Punch Out' : 'Punch In'}
-                                  </button>
-                                </div>
-                              </div>
-
-                              {/* Distance separator line */}
-                              {index < day.visits.length - 1 && day.visits[index].distance && (
-                                <div className="flex items-center my-3.5 px-2">
-                                  <div className="flex-1 border-t border-dashed border-slate-200" />
-                                  <div className="flex items-center gap-1 mx-3 px-3 py-1 bg-white border border-slate-100 rounded-full shadow-xs text-[10px] font-bold text-slate-500 whitespace-nowrap">
-                                    <MapPin size={10} className="text-slate-400" />
-                                    <span>{day.visits[index].distance}</span>
+                                  {/* Actions Row */}
+                                  <div className="flex gap-3 mt-4">
+                                    {visit.status === 'Completed' ? (
+                                      // Completed card: full-width Done pill, auto-moves to history at midnight
+                                      <div className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-full bg-emerald-50/60 border border-emerald-100">
+                                        <CheckCircle2 size={13} className="text-emerald-500 shrink-0" />
+                                        <span className="text-[11px] font-bold text-emerald-700">
+                                          Done{visit.completedTime ? ` • ${visit.completedTime}` : ''}
+                                          {visit.collected ? ` • ${visit.collected}` : ''}
+                                        </span>
+                                      </div>
+                                    ) : isPunchedIn ? (
+                                      <>
+                                        {/* Add Payment only for Collection visits */}
+                                        {visit.type === 'Collection' && (
+                                          <button 
+                                            type="button"
+                                            onClick={() => handleOpenLogPayment(visit)}
+                                            className="flex-1 py-2 rounded-full border border-[#ED1D24] text-[#ED1D24] text-xs font-bold hover:bg-red-50/20 flex items-center justify-center gap-1.5 transition-colors"
+                                          >
+                                            <CreditCard size={13} className="text-[#ED1D24]" />
+                                            Add Payment
+                                          </button>
+                                        )}
+                                        <button
+                                          type="button"
+                                          onClick={() => handlePunchOut(visit.id)}
+                                          className={`py-2 rounded-full text-xs font-bold transition-all active:scale-[0.98] bg-[#ED1D24] text-white hover:bg-red-600 ${
+                                            visit.type === 'Collection' ? 'flex-1' : 'w-full'
+                                          }`}
+                                        >
+                                          Punch Out
+                                        </button>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <button type="button" className="flex-1 py-2 rounded-full border border-slate-200 text-slate-500 text-xs font-bold hover:bg-slate-50 flex items-center justify-center gap-1.5 transition-colors">
+                                          <Navigation size={13} className="rotate-45 text-slate-400" />
+                                          Navigate
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handlePunchIn(visit.id)}
+                                          disabled={isAnyPunchedIn}
+                                          className={`flex-1 py-2 rounded-full text-xs font-bold transition-all active:scale-[0.98] ${
+                                            isAnyPunchedIn
+                                              ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                              : 'bg-[#ED1D24] text-white hover:bg-red-600'
+                                          }`}
+                                        >
+                                          Punch In
+                                        </button>
+                                      </>
+                                    )}
                                   </div>
-                                  <div className="flex-1 border-t border-dashed border-slate-200" />
                                 </div>
-                              )}
-                            </Reorder.Item>
-                          );
-                        })}
-                      </Reorder.Group>
+
+                                {/* Distance separator line */}
+                                {index < day.visits.length - 1 && day.visits[index].distance && (
+                                  <div className="flex items-center my-3.5 px-2">
+                                    <div className="flex-1 border-t border-dashed border-slate-200" />
+                                    <div className="flex items-center gap-1 mx-3 px-3 py-1 bg-white border border-slate-100 rounded-full shadow-xs text-[10px] font-bold text-slate-500 whitespace-nowrap">
+                                      <MapPin size={10} className="text-slate-400" />
+                                      <span>{day.visits[index].distance}</span>
+                                    </div>
+                                    <div className="flex-1 border-t border-dashed border-slate-200" />
+                                  </div>
+                                )}
+                              </Reorder.Item>
+                            );
+                          })}
+                        </Reorder.Group>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center py-7 px-4 bg-slate-50/50 border border-dashed border-slate-200 rounded-2xl text-center">
+                          <Calendar size={28} className="text-slate-400 mb-2 opacity-60" />
+                          <p className="text-xs font-extrabold text-slate-700 uppercase tracking-wide">
+                            No visits scheduled for this day
+                          </p>
+                          <p className="text-[10px] text-slate-400 font-semibold mt-1 mb-3">
+                            Add manual visits or choose from suggestions to start planning.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const labelMap = {
+                                'today': 'Today',
+                                'tomorrow': 'Tomorrow',
+                                'day_after_tomorrow': 'Day After Tomorrow'
+                              };
+                              handleOpenSchedule();
+                              handleSelectDateChange(labelMap[day.id]);
+                            }}
+                            className="px-4 py-2 bg-[#ED1D24] text-white text-[11.5px] font-bold rounded-xl shadow-xs hover:bg-red-600 transition-colors"
+                          >
+                            + Add Visit Stop
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -977,63 +1114,118 @@ const VisitsView = () => {
 
         {activeTab === 1 && (
           <div className="space-y-4">
-            {historyVisits.map((visit) => {
-              const isCompleted = visit.status === 'Completed';
-              return (
-                <div key={visit.id} className="bg-white rounded-[24px] p-6 shadow-[0_4px_20px_rgba(0,0,0,0.02)] border border-[#E5E9EB] relative">
-                  {/* Header Row */}
-                  <div className="flex justify-between items-center mb-2.5">
-                    <h3 className="font-extrabold text-[15px] text-black leading-snug max-w-[70%] uppercase tracking-wide">
-                      {visit.name.toUpperCase()}
-                    </h3>
-                    <span className={`text-[12px] font-semibold px-4 py-1.5 rounded-full border transition-all ${
-                      isCompleted 
-                        ? 'border-[#28A745] text-[#28A745] bg-white' 
-                        : 'border-[#FF4D4D] text-[#FF4D4D] bg-white'
-                    }`}>
-                      {visit.status}
-                    </span>
+            {(() => {
+              const grouped = {};
+              historyVisits.forEach(visit => {
+                const dateKey = visit.date || 'Past Visits';
+                if (!grouped[dateKey]) {
+                  grouped[dateKey] = [];
+                }
+                grouped[dateKey].push(visit);
+              });
+              
+              const groupedKeys = Object.keys(grouped);
+              if (groupedKeys.length === 0) {
+                return (
+                  <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+                    <Calendar size={40} className="mb-3 opacity-20" />
+                    <span className="text-sm font-semibold">No history visits yet.</span>
                   </div>
+                );
+              }
+              
+              return groupedKeys.map(dateKey => {
+                const dayVisits = grouped[dateKey];
+                const isCollapsed = collapsedHistoryDates[dateKey] ?? false;
+                
+                return (
+                  <div key={dateKey} className="bg-white rounded-2xl overflow-hidden shadow-[0_4px_25px_rgba(0,0,0,0.02)] border border-slate-100 hover:shadow-xs transition-shadow duration-200">
+                    {/* Collapsible Header */}
+                    <div 
+                      onClick={() => toggleHistoryCollapse(dateKey)}
+                      className="flex items-center justify-between px-4 py-3.5 bg-white cursor-pointer active:bg-slate-50/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 flex-wrap">
+                        {/* Calendar icon */}
+                        <Calendar size={16} className="text-slate-400 shrink-0" />
 
-                  {/* Time row with clock icon */}
-                  <div className="flex items-center gap-2 text-slate-500 mb-4">
-                    <div className="w-[22px] h-[22px] rounded bg-[#FFF9E6] flex items-center justify-center border border-[#FFF3D1]/40 shrink-0">
-                      <Clock size={12} className="text-[#627085]" />
-                    </div>
-                    <span className="text-[13px] font-medium text-[#627085]">
-                      {visit.date} • Punch-out at {visit.completedTime || (isCompleted ? '01:54 PM' : '12:54 PM')}
-                    </span>
-                  </div>
 
-                  {/* Bottom box inside light gray container */}
-                  <div className="bg-[#F8F9FA] rounded-[16px] p-4 border border-[#F1F3F5]">
-                    <p className="text-[#627085] text-[13px] font-medium mb-2.5">
-                      {isCompleted ? 'The scheduled visit completed.' : 'The scheduled is cancelled'}
-                    </p>
-                    <div className="h-[1px] bg-[#EAECEF] w-full mb-3" />
-                    
-                    {isCompleted ? (
-                      <div className="text-[13.5px] font-semibold">
-                        <span className="text-[#00875A] font-extrabold">Collected:</span>{' '}
-                        <span className="text-black font-extrabold">{visit.collected || '₹11,400'}</span>
+                        <span className="text-[13.5px] font-extrabold text-slate-800">
+                          {dateKey}
+                        </span>
+                        
+                        <div className="flex items-center gap-1.5">
+                          <span className="bg-slate-50 border border-slate-200/60 text-slate-600 text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-3xs">
+                            {dayVisits.length} {dayVisits.length === 1 ? 'Visit' : 'Visits'}
+                          </span>
+                        </div>
                       </div>
-                    ) : (
-                      <div className="text-[13.5px] font-semibold">
-                        <span className="text-[#ED1D24] font-extrabold">Reason:</span>{' '}
-                        <span className="text-black font-extrabold">{visit.reason || 'Shop Closed / Unavailable'}</span>
+                      <ChevronDown 
+                        size={16} 
+                        className={`text-slate-400 transition-transform duration-200 ${
+                          isCollapsed ? '-rotate-90' : ''
+                        }`} 
+                      />
+                    </div>
+
+                    {!isCollapsed && (
+                      <div className="px-4 pb-4 pt-2 bg-white space-y-3">
+                        {dayVisits.map((visit) => {
+                          const isCompleted = visit.status === 'Completed';
+                          return (
+                            <div key={visit.id} className="bg-white rounded-[24px] p-6 shadow-[0_4px_20px_rgba(0,0,0,0.02)] border border-[#E5E9EB] relative">
+                              {/* Header Row */}
+                              <div className="flex justify-between items-center mb-2.5">
+                                <h3 className="font-extrabold text-[15px] text-black leading-snug max-w-[70%] uppercase tracking-wide">
+                                  {visit.name.toUpperCase()}
+                                </h3>
+                                <span className={`text-[12px] font-semibold px-4 py-1.5 rounded-full border transition-all ${
+                                  isCompleted 
+                                    ? 'border-[#28A745] text-[#28A745] bg-white' 
+                                    : 'border-[#FF4D4D] text-[#FF4D4D] bg-white'
+                                }`}>
+                                  {visit.status}
+                                </span>
+                              </div>
+
+                              {/* Time row with clock icon */}
+                              <div className="flex items-center gap-2 text-slate-500 mb-4">
+                                <div className="w-[22px] h-[22px] rounded bg-[#FFF9E6] flex items-center justify-center border border-[#FFF3D1]/40 shrink-0">
+                                  <Clock size={12} className="text-[#627085]" />
+                                </div>
+                                <span className="text-[13px] font-medium text-[#627085]">
+                                  {visit.date} • Punch-out at {visit.completedTime || (isCompleted ? '01:54 PM' : '12:54 PM')}
+                                </span>
+                              </div>
+
+                              {/* Bottom box inside light gray container */}
+                              <div className="bg-[#F8F9FA] rounded-[16px] p-4 border border-[#F1F3F5]">
+                                <p className="text-[#627085] text-[13px] font-medium mb-2.5">
+                                  {isCompleted ? 'The scheduled visit completed.' : 'The scheduled is cancelled'}
+                                </p>
+                                <div className="h-[1px] bg-[#EAECEF] w-full mb-3" />
+                                
+                                {isCompleted ? (
+                                  <div className="text-[13.5px] font-semibold">
+                                    <span className="text-[#00875A] font-extrabold">Collected:</span>{' '}
+                                    <span className="text-black font-extrabold">{visit.collected || '₹11,400'}</span>
+                                  </div>
+                                ) : (
+                                  <div className="text-[13.5px] font-semibold">
+                                    <span className="text-[#ED1D24] font-extrabold">Reason:</span>{' '}
+                                    <span className="text-black font-extrabold">{visit.reason || 'Shop Closed / Unavailable'}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
-                </div>
-              );
-            })}
-
-            {historyVisits.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-12 text-gray-400">
-                <Calendar size={40} className="mb-3 opacity-20" />
-                <span className="text-sm font-semibold">No history visits yet.</span>
-              </div>
-            )}
+                );
+              });
+            })()}
           </div>
         )}
       </div>
@@ -1084,6 +1276,7 @@ const VisitsView = () => {
                     {[
                       { label: 'Today', sub: 'Wed, Jan 7' },
                       { label: 'Tomorrow', sub: 'Thu, Jan 8' },
+                      { label: 'Day After Tomorrow', sub: 'Fri, Jan 9' },
                     ].map((date) => (
                       <button
                         key={date.label}
@@ -1095,8 +1288,8 @@ const VisitsView = () => {
                             : 'border-slate-200 text-slate-500 hover:bg-slate-50 bg-white'
                         }`}
                       >
-                        <span className="text-[12px] font-bold block">{date.label}</span>
-                        <span className="text-[10px] block opacity-80">{date.sub}</span>
+                        <span className="text-[11px] font-bold block">{date.label}</span>
+                        <span className="text-[9px] block opacity-80">{date.sub}</span>
                       </button>
                     ))}
                   </div>
@@ -1199,227 +1392,229 @@ const VisitsView = () => {
                     )}
     
                     {/* Suggested Nearby Dealers */}
-                    <div className="mb-5">
-                      <div className="flex justify-between items-center mb-1">
-                        <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider">Suggested Nearby Dealers</label>
-                        
-                        {/* Radius Filter Pills */}
-                        <div className="flex bg-slate-100 p-0.5 rounded-full border border-slate-200/50">
-                          {[5, 10, 15].map((radius) => (
-                            <button
-                              key={radius}
-                              type="button"
-                              onClick={() => setSelectedRadius(radius)}
-                              className={`px-3 py-1 rounded-full text-[9px] font-extrabold transition-all duration-150 ${
-                                selectedRadius === radius
-                                  ? 'bg-white text-slate-800 shadow-xs border border-slate-100'
-                                  : 'text-slate-500 hover:text-slate-700 border border-transparent'
-                              }`}
-                            >
-                              {radius} KM
-                            </button>
-                          ))}
+                    {stackedStops.length > 0 && (
+                      <div className="mb-5">
+                        <div className="flex justify-between items-center mb-1">
+                          <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider">Suggested Nearby Dealers</label>
+                          
+                          {/* Radius Filter Pills */}
+                          <div className="flex bg-slate-100 p-0.5 rounded-full border border-slate-200/50">
+                            {[5, 10, 15].map((radius) => (
+                              <button
+                                key={radius}
+                                type="button"
+                                onClick={() => setSelectedRadius(radius)}
+                                className={`px-3 py-1 rounded-full text-[9px] font-extrabold transition-all duration-150 ${
+                                  selectedRadius === radius
+                                    ? 'bg-white text-slate-800 shadow-xs border border-slate-100'
+                                    : 'text-slate-500 hover:text-slate-700 border border-transparent'
+                                }`}
+                              >
+                                {radius} KM
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                      {stackedStops.length > 0 && (
-                        <div className="inline-flex items-center gap-1.5 bg-slate-50 border border-slate-200/50 rounded-full px-2.5 py-1 text-[9.5px] text-slate-500 font-semibold mt-1 mb-2.5 w-fit select-none">
-                          <MapPin size={10} className="text-[#ED1D24] shrink-0" />
-                          <span>Near <strong className="text-slate-800 font-extrabold">{stackedStops[stackedStops.length - 1].name}</strong></span>
-                        </div>
-                      )}
-                      {suggestedDealers.length > 0 ? (
-                        <>
-                          <div className="flex gap-3 overflow-x-auto pb-2.5 no-scrollbar scroll-smooth">
-                            {suggestedDealers.map((dealer) => {
-                              const isSelected = expandingDealerName === dealer.name;
+                        {stackedStops.length > 0 && (
+                          <div className="inline-flex items-center gap-1.5 bg-slate-50 border border-slate-200/50 rounded-full px-2.5 py-1 text-[9.5px] text-slate-500 font-semibold mt-1 mb-2.5 w-fit select-none">
+                            <MapPin size={10} className="text-[#ED1D24] shrink-0" />
+                            <span>Near <strong className="text-slate-800 font-extrabold">{stackedStops[stackedStops.length - 1].name}</strong></span>
+                          </div>
+                        )}
+                        {suggestedDealers.length > 0 ? (
+                          <>
+                            <div className="flex gap-3 overflow-x-auto pb-2.5 no-scrollbar scroll-smooth">
+                              {suggestedDealers.map((dealer) => {
+                                const isSelected = expandingDealerName === dealer.name;
 
-                              return (
-                                <div
-                                  key={dealer.name}
-                                  className={`bg-white border rounded-2xl p-4 min-w-[195px] max-w-[210px] min-h-[160px] flex flex-col justify-between text-left shadow-2xs shrink-0 transition-all duration-200 ${
-                                    isSelected ? 'border-[#ED1D24] ring-2 ring-[#ED1D24]/10 shadow-md' : 'border-slate-200'
-                                  }`}
-                                >
-                                  <div>
-                                    {/* Top Row: Badge */}
-                                    <div className="flex items-center mb-2.5 w-full">
-                                      <div className={`${dealer.badge.bg} rounded-md px-2 py-0.5 text-[9px] font-extrabold flex items-center gap-1 border`}>
-                                        <span>{dealer.badge.text}</span>
-                                      </div>
-                                    </div>
-        
-                                    <span className="font-extrabold text-[12px] text-slate-800 uppercase tracking-tight line-clamp-2 leading-tight block">
-                                      {dealer.name}
-                                    </span>
-                                    <div className="mt-1.5">
-                                      <span className="text-[10px] font-semibold text-slate-400 block">
-                                        {dealer.locality} ({dealer.distance} KM)
-                                      </span>
-                                      {dealer.badge.text === 'Collection' && (
-                                        <div className="text-[9.5px] font-bold text-slate-500 mt-1 block">
-                                          Bal: <strong className="text-slate-700 font-extrabold">{dealer.pending}</strong>
-                                        </div>
-                                      )}
-                                      {dealer.badge.text === 'Never Visited' && (
-                                        <div className="text-[8.5px] font-bold text-slate-400 mt-1 block">
-                                          Not visited from <strong className="text-slate-500 font-extrabold">{dealer.notVisitedDays || 12} days</strong>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setExpandingDealerName(dealer.name);
-                                      setShowManualForm(false);
-                                      
-                                      // Determine auto default reason
-                                      const pendingAmount = parseInt(dealer.pending.replace(/[^\d]/g, '')) || 0;
-                                      setInlineReason(pendingAmount > 0 ? 'Collection' : 'General Visit');
-                                      
-                                      // Determine next logical time slot
-                                      const timeSlots = ['09:00AM - 12:00PM', '12:00PM - 03:00PM', '03:00PM - 06:00PM'];
-                                      let nextSlot = '09:00AM - 12:00PM';
-                                      if (stackedStops.length > 0) {
-                                        const lastSlot = stackedStops[stackedStops.length - 1].time;
-                                        const lastIndex = timeSlots.indexOf(lastSlot);
-                                        if (lastIndex !== -1 && lastIndex < timeSlots.length - 1) {
-                                          nextSlot = timeSlots[lastIndex + 1];
-                                        } else {
-                                          nextSlot = '03:00PM - 06:00PM';
-                                        }
-                                      }
-                                      setInlineTime(nextSlot);
-                                    }}
-                                    className={`mt-3.5 w-full py-1.5 rounded-lg text-[10px] font-bold transition-colors text-center border active:scale-[0.97] ${
-                                      isSelected
-                                        ? 'bg-[#ED1D24] text-white border-transparent'
-                                        : 'bg-red-50 text-[#ED1D24] hover:bg-red-100 border-red-100/30'
+                                return (
+                                  <div
+                                    key={dealer.name}
+                                    className={`bg-white border rounded-2xl p-4 min-w-[195px] max-w-[210px] min-h-[160px] flex flex-col justify-between text-left shadow-2xs shrink-0 transition-all duration-200 ${
+                                      isSelected ? 'border-[#ED1D24] ring-2 ring-[#ED1D24]/10 shadow-md' : 'border-slate-200'
                                     }`}
                                   >
-                                    {isSelected ? 'Configuring...' : 'Add to Route'}
-                                  </button>
-                                </div>
-                              );
-                            })}
-                          </div>
-
-                          {/* Full-width configuration drawer below the carousel */}
-                          <AnimatePresence>
-                            {expandingDealerName && (
-                              <motion.div
-                                initial={{ opacity: 0, height: 0, marginTop: 0 }}
-                                animate={{ opacity: 1, height: 'auto', marginTop: 12 }}
-                                exit={{ opacity: 0, height: 0, marginTop: 0 }}
-                                transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-                                className="overflow-hidden"
-                              >
-                                <div className="bg-slate-50/50 border-2 border-[#ED1D24] rounded-2xl p-5 shadow-sm text-left space-y-4 relative">
-                                  {/* Close Button top-right */}
-                                  <button
-                                    type="button"
-                                    onClick={() => setExpandingDealerName(null)}
-                                    className="absolute right-4 top-4 p-1 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
-                                  >
-                                    <X size={16} />
-                                  </button>
-
-                                  {/* Heading Block */}
-                                  <div>
-                                    <span className="text-[9px] font-extrabold text-[#ED1D24] uppercase tracking-widest block mb-1">
-                                      Configure Visit Stop
-                                    </span>
-                                    <h4 className="text-[14px] font-black text-slate-800 uppercase tracking-tight">
-                                      {expandingDealerName}
-                                    </h4>
-                                    <p className="text-[11px] font-semibold text-slate-400 mt-1">
-                                      {(() => {
-                                        const d = allDealersList.find(x => x.name === expandingDealerName);
-                                        if (!d) return '';
-                                        const pendingVal = parseInt(d.pending.replace(/[^\d]/g, '')) || 0;
-                                        const dist = getDistanceBetween(stackedStops[stackedStops.length - 1]?.name, d.name);
-                                        if (pendingVal > 0) {
-                                          return `${d.locality} (${dist} KM) • Balance: ${d.pending}`;
-                                        } else {
-                                          const days = d.notVisitedDays || 12;
-                                          return `${d.locality} (${dist} KM) • Not visited from ${days} days`;
+                                    <div>
+                                      {/* Top Row: Badge */}
+                                      <div className="flex items-center mb-2.5 w-full">
+                                        <div className={`${dealer.badge.bg} rounded-md px-2 py-0.5 text-[9px] font-extrabold flex items-center gap-1 border`}>
+                                          <span>{dealer.badge.text}</span>
+                                        </div>
+                                      </div>
+          
+                                      <span className="font-extrabold text-[12px] text-slate-800 uppercase tracking-tight line-clamp-2 leading-tight block">
+                                        {dealer.name}
+                                      </span>
+                                      <div className="mt-1.5">
+                                        <span className="text-[10px] font-semibold text-slate-400 block">
+                                          {dealer.locality} ({dealer.distance} KM)
+                                        </span>
+                                        {dealer.badge.text === 'Collection' && (
+                                          <div className="text-[9.5px] font-bold text-slate-500 mt-1 block">
+                                            Bal: <strong className="text-slate-700 font-extrabold">{dealer.pending}</strong>
+                                          </div>
+                                        )}
+                                        {dealer.badge.text === 'Never Visited' && (
+                                          <div className="text-[8.5px] font-bold text-slate-400 mt-1 block">
+                                            Not visited from <strong className="text-slate-500 font-extrabold">{dealer.notVisitedDays || 12} days</strong>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setExpandingDealerName(dealer.name);
+                                        setShowManualForm(false);
+                                        
+                                        // Determine auto default reason
+                                        const pendingAmount = parseInt(dealer.pending.replace(/[^\d]/g, '')) || 0;
+                                        setInlineReason(pendingAmount > 0 ? 'Collection' : 'General Visit');
+                                        
+                                        // Determine next logical time slot
+                                        const timeSlots = ['09:00AM - 12:00PM', '12:00PM - 03:00PM', '03:00PM - 06:00PM'];
+                                        let nextSlot = '09:00AM - 12:00PM';
+                                        if (stackedStops.length > 0) {
+                                          const lastSlot = stackedStops[stackedStops.length - 1].time;
+                                          const lastIndex = timeSlots.indexOf(lastSlot);
+                                          if (lastIndex !== -1 && lastIndex < timeSlots.length - 1) {
+                                            nextSlot = timeSlots[lastIndex + 1];
+                                          } else {
+                                            nextSlot = '03:00PM - 06:00PM';
+                                          }
                                         }
-                                      })()}
-                                    </p>
+                                        setInlineTime(nextSlot);
+                                      }}
+                                      className={`mt-3.5 w-full py-1.5 rounded-lg text-[10px] font-bold transition-colors text-center border active:scale-[0.97] ${
+                                        isSelected
+                                          ? 'bg-[#ED1D24] text-white border-transparent'
+                                          : 'bg-red-50 text-[#ED1D24] hover:bg-red-100 border-red-100/30'
+                                      }`}
+                                    >
+                                      {isSelected ? 'Configuring...' : 'Add to Route'}
+                                    </button>
                                   </div>
+                                );
+                              })}
+                            </div>
 
-                                  {/* Input Selects Side-by-Side */}
-                                  <div className="grid grid-cols-2 gap-3.5">
-                                    {/* Reason Selector */}
-                                    <div>
-                                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                                        Select Reason
-                                      </label>
-                                      <div className="relative">
-                                        <select
-                                          value={inlineReason}
-                                          onChange={(e) => setInlineReason(e.target.value)}
-                                          className="w-full text-[12px] border border-slate-200 rounded-xl h-[42px] pl-3 pr-8 bg-white outline-none focus:border-red-500 font-bold text-slate-700 appearance-none transition-colors"
-                                        >
-                                          <option value="Collection">Collection</option>
-                                          <option value="New Order">New Order</option>
-                                          <option value="General Visit">General Visit</option>
-                                          <option value="Order Follow-up">Order Follow-up</option>
-                                        </select>
-                                        <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                                      </div>
-                                    </div>
-
-                                    {/* Time Slot Selector */}
-                                    <div>
-                                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                                        Select Time Slot
-                                      </label>
-                                      <div className="relative">
-                                        <select
-                                          value={inlineTime}
-                                          onChange={(e) => setInlineTime(e.target.value)}
-                                          className="w-full text-[12px] border border-slate-200 rounded-xl h-[42px] pl-3 pr-8 bg-white outline-none focus:border-red-500 font-bold text-slate-700 appearance-none transition-colors"
-                                        >
-                                          <option value="09:00AM - 12:00PM">09:00AM-12:00PM</option>
-                                          <option value="12:00PM - 03:00PM">12:00PM-03:00PM</option>
-                                          <option value="03:00PM - 06:00PM">03:00PM-06:00PM</option>
-                                        </select>
-                                        <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  {/* Actions Row */}
-                                  <div className="flex gap-3 pt-1">
+                            {/* Full-width configuration drawer below the carousel */}
+                            <AnimatePresence>
+                              {expandingDealerName && (
+                                <motion.div
+                                  initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                                  animate={{ opacity: 1, height: 'auto', marginTop: 12 }}
+                                  exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                                  transition={{ type: 'spring', damping: 25, stiffness: 220 }}
+                                  className="overflow-hidden"
+                                >
+                                  <div className="bg-slate-50/50 border-2 border-[#ED1D24] rounded-2xl p-5 shadow-sm text-left space-y-4 relative">
+                                    {/* Close Button top-right */}
                                     <button
                                       type="button"
                                       onClick={() => setExpandingDealerName(null)}
-                                      className="flex-1 py-2.5 text-xs font-bold text-slate-500 bg-white border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors text-center"
+                                      className="absolute right-4 top-4 p-1 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
                                     >
-                                      Cancel
+                                      <X size={16} />
                                     </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleConfirmInlineAdd(expandingDealerName, inlineReason, inlineTime)}
-                                      className="flex-1 py-2.5 rounded-xl bg-[#ED1D24] text-white text-xs font-bold hover:bg-red-650 transition-colors text-center shadow-sm active:scale-[0.98]"
-                                    >
-                                      Confirm Stop
-                                    </button>
+
+                                    {/* Heading Block */}
+                                    <div>
+                                      <span className="text-[9px] font-extrabold text-[#ED1D24] uppercase tracking-widest block mb-1">
+                                        Configure Visit Stop
+                                      </span>
+                                      <h4 className="text-[14px] font-black text-slate-800 uppercase tracking-tight">
+                                        {expandingDealerName}
+                                      </h4>
+                                      <p className="text-[11px] font-semibold text-slate-400 mt-1">
+                                        {(() => {
+                                          const d = allDealersList.find(x => x.name === expandingDealerName);
+                                          if (!d) return '';
+                                          const pendingVal = parseInt(d.pending.replace(/[^\d]/g, '')) || 0;
+                                          const dist = getDistanceBetween(stackedStops[stackedStops.length - 1]?.name, d.name);
+                                          if (pendingVal > 0) {
+                                            return `${d.locality} (${dist} KM) • Balance: ${d.pending}`;
+                                          } else {
+                                            const days = d.notVisitedDays || 12;
+                                            return `${d.locality} (${dist} KM) • Not visited from ${days} days`;
+                                          }
+                                        })()}
+                                      </p>
+                                    </div>
+
+                                    {/* Input Selects Side-by-Side */}
+                                    <div className="grid grid-cols-2 gap-3.5">
+                                      {/* Reason Selector */}
+                                      <div>
+                                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                                          Select Reason
+                                        </label>
+                                        <div className="relative">
+                                          <select
+                                            value={inlineReason}
+                                            onChange={(e) => setInlineReason(e.target.value)}
+                                            className="w-full text-[12px] border border-slate-200 rounded-xl h-[42px] pl-3 pr-8 bg-white outline-none focus:border-red-500 font-bold text-slate-700 appearance-none transition-colors"
+                                          >
+                                            <option value="Collection">Collection</option>
+                                            <option value="New Order">New Order</option>
+                                            <option value="General Visit">General Visit</option>
+                                            <option value="Order Follow-up">Order Follow-up</option>
+                                          </select>
+                                          <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                        </div>
+                                      </div>
+
+                                      {/* Time Slot Selector */}
+                                      <div>
+                                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                                          Select Time Slot
+                                        </label>
+                                        <div className="relative">
+                                          <select
+                                            value={inlineTime}
+                                            onChange={(e) => setInlineTime(e.target.value)}
+                                            className="w-full text-[12px] border border-slate-200 rounded-xl h-[42px] pl-3 pr-8 bg-white outline-none focus:border-red-500 font-bold text-slate-700 appearance-none transition-colors"
+                                          >
+                                            <option value="09:00AM - 12:00PM">09:00AM-12:00PM</option>
+                                            <option value="12:00PM - 03:00PM">12:00PM-03:00PM</option>
+                                            <option value="03:00PM - 06:00PM">03:00PM-06:00PM</option>
+                                          </select>
+                                          <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Actions Row */}
+                                    <div className="flex gap-3 pt-1">
+                                      <button
+                                        type="button"
+                                        onClick={() => setExpandingDealerName(null)}
+                                        className="flex-1 py-2.5 text-xs font-bold text-slate-500 bg-white border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors text-center"
+                                      >
+                                        Cancel
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleConfirmInlineAdd(expandingDealerName, inlineReason, inlineTime)}
+                                        className="flex-1 py-2.5 rounded-xl bg-[#ED1D24] text-white text-xs font-bold hover:bg-red-650 transition-colors text-center shadow-sm active:scale-[0.98]"
+                                      >
+                                        Confirm Stop
+                                      </button>
+                                    </div>
                                   </div>
-                                </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </>
-                      ) : (
-                        <div className="bg-slate-50/50 border border-slate-200/40 rounded-2xl py-6 px-4 text-center">
-                          <p className="text-xs font-bold text-slate-400">
-                            No suggested dealers found within {selectedRadius} KM radius.
-                          </p>
-                        </div>
-                      )}
-                    </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </>
+                        ) : (
+                          <div className="bg-slate-50/50 border border-slate-200/40 rounded-2xl py-6 px-4 text-center">
+                            <p className="text-xs font-bold text-slate-400">
+                              No suggested dealers found within {selectedRadius} KM radius.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
     
                     {/* Form fields section */}
                     {showManualForm ? (
@@ -1427,18 +1622,6 @@ const VisitsView = () => {
                         {/* Header of Manual Form */}
                         <div className="flex justify-between items-center pb-2 border-b border-slate-200/50">
                           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Add Visit Manually</span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setShowManualForm(false);
-                              setSelectedDealer('');
-                              setVisitPurpose('Collection');
-                              setScheduleTime('');
-                            }}
-                            className="text-[11px] text-slate-450 hover:text-slate-600 font-bold"
-                          >
-                            Cancel
-                          </button>
                         </div>
 
                         {/* Select Dealer */}
@@ -1543,7 +1726,7 @@ const VisitsView = () => {
                         </div>
 
                         {/* Add Stop Button */}
-                        {selectedDealer && (
+                        {selectedDealer && stackedStops.length > 0 && (
                           <div className="pt-2">
                             <button
                               type="button"
