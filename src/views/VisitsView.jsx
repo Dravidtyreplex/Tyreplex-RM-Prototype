@@ -22,7 +22,9 @@ import {
   MessageSquare,
   Banknote,
   Upload,
-  GripVertical
+  GripVertical,
+  Sparkles,
+  RotateCcw
 } from 'lucide-react';
 
 const BottomSheet = ({ isOpen, onClose, title, subtitle, children }) => (
@@ -104,6 +106,7 @@ const VisitsView = () => {
   const [activeTab, setActiveTab] = useState(0); // 0: Upcoming, 1: Need Attention, 2: History
   const [month, setMonth] = useState('Jan, 2025');
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
+  const [isPlanMyDayOpen, setIsPlanMyDayOpen] = useState(false);
 
   // Form states for schedule bottom sheet
   const [selectedDealer, setSelectedDealer] = useState('');
@@ -1230,15 +1233,67 @@ const VisitsView = () => {
         )}
       </div>
 
-      {/* Bottom Sticky Button */}
+      {/* Bottom Sticky CTA — Plan My Day */}
       <div className="bg-[#F9FAFB] px-4 py-3 border-t border-slate-50 shrink-0 sticky bottom-0 z-10">
         <button 
-          onClick={handleOpenSchedule}
+          onClick={() => setIsPlanMyDayOpen(true)}
           className="w-full bg-[#ED1D24] text-white py-3.5 rounded-xl text-sm font-bold shadow-md hover:bg-red-600 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
         >
-          Schedule New Visit
+          <Calendar size={16} />
+          Plan My Day
         </button>
+        <p className="text-[10px] text-slate-400 text-center mt-1.5 font-medium">
+          {days.reduce((acc, d) => acc + d.visits.filter(v => v.status === 'Scheduled').length, 0) > 0
+            ? `${days.reduce((acc, d) => acc + d.visits.filter(v => v.status === 'Scheduled').length, 0)} visits already scheduled`
+            : '3 collections due • 2 dealers overdue'
+          }
+        </p>
       </div>
+
+      {/* Plan My Day Bottom Sheet */}
+      <BottomSheet
+        isOpen={isPlanMyDayOpen}
+        onClose={() => setIsPlanMyDayOpen(false)}
+        title="Plan My Day"
+        subtitle="Today, Jan 7"
+      >
+        <div className="space-y-3">
+          {/* Smart Plan */}
+          <button
+            onClick={() => { setIsPlanMyDayOpen(false); navigate('/plan-my-day'); }}
+            className="w-full bg-white border-2 border-slate-100 hover:border-[#ED1D24]/30 rounded-2xl p-4 text-left transition-colors active:scale-[0.98]"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#ED1D24]/10 flex items-center justify-center shrink-0">
+                <Sparkles size={20} className="text-[#ED1D24]" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-[14px] font-bold text-slate-800">Smart Plan</h3>
+                <p className="text-[12px] text-slate-500 mt-0.5">5 stops • 32 KM</p>
+                <span className="text-[10px] font-bold bg-green-50 text-green-700 px-2 py-0.5 rounded-full mt-1 inline-block">AI-optimized route</span>
+              </div>
+              <ChevronRight size={16} className="text-slate-300" />
+            </div>
+          </button>
+
+          {/* Manual Plan → opens existing schedule sheet */}
+          <button
+            onClick={() => { setIsPlanMyDayOpen(false); setTimeout(() => handleOpenSchedule(), 300); }}
+            className="w-full bg-white border-2 border-slate-100 hover:border-slate-200 rounded-2xl p-4 text-left transition-colors active:scale-[0.98]"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
+                <Plus size={20} className="text-slate-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-[14px] font-bold text-slate-800">Manual Plan</h3>
+                <p className="text-[12px] text-slate-500 mt-0.5">Pick dealers yourself & build your route</p>
+              </div>
+              <ChevronRight size={16} className="text-slate-300" />
+            </div>
+          </button>
+        </div>
+      </BottomSheet>
 
       {/* Schedule Visit Bottom Sheet */}
       <AnimatePresence>

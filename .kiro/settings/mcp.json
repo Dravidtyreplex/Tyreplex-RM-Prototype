@@ -1,0 +1,45 @@
+{
+  "mcpServers": {
+    "figwright": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@figwright/mcp@latest"
+      ],
+      "disabled": false,
+      "autoApprove": [
+        "create_text",
+        "set_strokes",
+        "set_text_properties",
+        "set_text_properties",
+        "set_text_properties",
+        "create_frame",
+        "set_auto_layout",
+        "set_layout_props",
+        "create_rectangle",
+        "set_fills",
+        "set_corner_radius",
+        "reorder_nodes",
+        "create_ellipse",
+        "clone_node",
+        "scan_text_nodes",
+        "set_text",
+        "set_text",
+        "rename_node",
+        "set_effects",
+        "get_design_context",
+        "ping",
+        "get_pages",
+        "navigate_to_page",
+        "search_nodes",
+        "scan_nodes_by_types",
+        "batch",
+        "get_screenshot",
+        "import_svg",
+        "resize_nodes",
+        "get_fonts",
+        "move_nodes"
+      ]
+    }
+  }
+}

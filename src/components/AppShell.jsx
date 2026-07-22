@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { User, Users, Battery, MapPin, HelpCircle, LogOut, Bell } from 'lucide-react';
+import { User, Users, Battery, MapPin, HelpCircle, LogOut, Bell, IndianRupee } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import BottomNav from './BottomNav';
 
@@ -8,6 +8,7 @@ const Sidebar = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   
   const menuItems = [
+    { title: 'Dealer BNPL', icon: <IndianRupee size={20} className="text-[#2563EB]" />, action: () => { navigate('/dealer-bnpl') } },
     { title: 'Battery Optimization', icon: <Battery size={20} className="text-[#D32F2F]" />, action: () => {} },
     { title: 'Background Location', icon: <MapPin size={20} className="text-[#D32F2F]" />, action: () => {} },
     { title: 'FAQ', icon: <HelpCircle size={20} />, action: () => { navigate('/faq') } },

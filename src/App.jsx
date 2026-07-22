@@ -19,6 +19,8 @@ import SearchView from './views/SearchView';
 import FaqView from './views/FaqView';
 import DealerPaymentView from './views/DealerPaymentView';
 import MasterRmView from './views/MasterRmView';
+import PlanMyDayView from './views/PlanMyDayView';
+import DealerBnplView from './views/DealerBnplView';
 
 function App() {
   return (
@@ -43,6 +45,8 @@ function App() {
           <Route path="/faq" element={<FaqView />} />
           <Route path="/dealer-payment" element={<DealerPaymentView />} />
           <Route path="/master-rm" element={<MasterRmView />} />
+          <Route path="/plan-my-day" element={<PlanMyDayView />} />
+          <Route path="/dealer-bnpl" element={<DealerBnplView />} />
           <Route path="/" element={<Navigate to="/login" replace />} />
         </Routes>
       </AppShell>
