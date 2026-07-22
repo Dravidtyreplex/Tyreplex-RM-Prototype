@@ -199,14 +199,106 @@ const VisitsView = () => {
 
   // Nearby suggested dealers database
   const allDealersList = [
-    { name: 'Modern Tyres & Service', locality: 'Sector 18, Noida', pending: '₹23,290' },
-    { name: 'Super Wheel Care', locality: 'Gurgaon, Haryana', pending: '₹15,400' },
-    { name: 'SAI RAM TYRES', locality: 'Rohini, Delhi', pending: '₹12,800' },
-    { name: 'Lucky Tyre House', locality: 'Dwarka, Delhi', pending: '₹9,200' },
-    { name: 'Sharma Auto', locality: 'Vijay Nagar, Ghaziabad', pending: '₹18,500' },
-    { name: 'Delhi Tyre World', locality: 'Dwarka, Delhi', pending: '₹0', notVisitedDays: 10 },
-    { name: 'Capital Wheels', locality: 'Dwarka, Delhi', pending: '₹0', notVisitedDays: 15 }
+    { name: 'Sharma Auto', locality: 'Vijay Nagar, Ghaziabad', pending: '₹18,500', notVisitedDays: 10, nonTransactingDays: 15 },
+    { name: 'Raj Tyres & Alignment', locality: 'Dwarka, Delhi', pending: '₹31,000', notVisitedDays: 14, nonTransactingDays: 20 },
+    { name: 'Modern Tyres & Service', locality: 'Sector 18, Noida', pending: '₹23,290', notVisitedDays: 8, nonTransactingDays: 12 },
+    { name: 'Super Wheel Care', locality: 'Gurgaon, Haryana', pending: '₹15,400', notVisitedDays: 5, nonTransactingDays: 18 },
+    { name: 'SAI RAM TYRES', locality: 'Rohini, Delhi', pending: '₹12,800', notVisitedDays: 16, nonTransactingDays: 30 },
+    { name: 'Lucky Tyre House', locality: 'Dwarka, Delhi', pending: '₹9,200', notVisitedDays: 11, nonTransactingDays: 14 },
+    { name: 'Delhi Tyre World', locality: 'Dwarka, Delhi', pending: '₹0', notVisitedDays: 10, nonTransactingDays: 25 },
+    { name: 'Capital Wheels', locality: 'Dwarka, Delhi', pending: '₹0', notVisitedDays: 15, nonTransactingDays: 40 }
   ];
+
+  const getDealerTags = (item) => {
+    const tags = [];
+    const dealerData = allDealersList.find(d => d.name === item.name) || {};
+    
+    const pendingStr = item.pending || dealerData.pending || '₹0';
+    const numericPending = typeof pendingStr === 'number' 
+      ? pendingStr 
+      : (parseInt(String(pendingStr).replace(/[^\d]/g, '')) || 0);
+
+    const notVisitedDays = item.notVisitedDays ?? dealerData.notVisitedDays ?? 10;
+    const nonTransactingDays = item.nonTransactingDays ?? dealerData.nonTransactingDays ?? 15;
+    const reason = item.reason || item.type;
+
+    // 1. Collection Pending / Balance badge (Uniform Grey)
+    if (numericPending > 0) {
+      const formatted = numericPending >= 1000 
+        ? `₹${(numericPending / 1000).toFixed(1)}K pending` 
+        : `₹${numericPending} pending`;
+      tags.push({
+        id: 'pending',
+        label: formatted,
+        className: 'bg-[#F1F5F9] text-slate-700 border border-slate-200/80 font-bold'
+      });
+    } else if (reason === 'Collection') {
+      tags.push({
+        id: 'pending-general',
+        label: 'Collection Pending',
+        className: 'bg-[#F1F5F9] text-slate-700 border border-slate-200/80 font-bold'
+      });
+    }
+
+    // 2. Non-Transacting badge (Uniform Grey)
+    if (nonTransactingDays && nonTransactingDays > 0) {
+      tags.push({
+        id: 'non-transacting',
+        label: `Non-Transacting (${nonTransactingDays}d)`,
+        className: 'bg-[#F1F5F9] text-slate-700 border border-slate-200/80 font-bold'
+      });
+    }
+
+    // 3. Not Visited badge (Uniform Grey)
+    if (notVisitedDays && notVisitedDays > 0) {
+      tags.push({
+        id: 'not-visited',
+        label: `Not Visited (${notVisitedDays}d)`,
+        className: 'bg-[#F1F5F9] text-slate-700 border border-slate-200/80 font-bold'
+      });
+    }
+
+    // 4. Scheduled Visit / Purpose badge (Uniform Grey)
+    if (reason && reason !== 'Collection') {
+      tags.push({
+        id: 'visit-type',
+        label: reason,
+        className: 'bg-[#F1F5F9] text-slate-700 border border-slate-200/80 font-bold'
+      });
+    }
+
+    return tags;
+  };
+
+  const getRouteSummary = () => {
+    let totalPending = 0;
+    let collectionCount = 0;
+    let generalCount = 0;
+
+    stackedStops.forEach(stop => {
+      const dealerData = allDealersList.find(d => d.name === stop.name) || {};
+      const pendingStr = stop.pending || dealerData.pending || '₹0';
+      const num = typeof pendingStr === 'number' ? pendingStr : (parseInt(String(pendingStr).replace(/[^\d]/g, '')) || 0);
+      
+      totalPending += num;
+      if (num > 0 || stop.reason === 'Collection' || stop.type === 'Collection') {
+        collectionCount++;
+      } else {
+        generalCount++;
+      }
+    });
+
+    const formattedPending = totalPending >= 1000 ? `₹${(totalPending / 1000).toFixed(1)}K` : `₹${totalPending}`;
+    const totalDistance = getRouteDetails().totalDistance;
+
+    return {
+      stopsCount: stackedStops.length,
+      totalDistance,
+      formattedPending,
+      collectionCount,
+      generalCount
+    };
+  };
 
   const getSuggestedDealers = () => {
     if (stackedStops.length === 0) return [];
@@ -994,6 +1086,18 @@ const VisitsView = () => {
                                     ({visit.locality})
                                   </p>
 
+                                  {/* Multi-Condition Badges */}
+                                  <div className="flex flex-row flex-wrap items-center gap-1.5 mt-2.5">
+                                    {getDealerTags(visit).map((tag) => (
+                                      <span
+                                        key={tag.id}
+                                        className={`inline-flex items-center justify-center text-[10px] px-2.5 py-0.5 rounded-lg border whitespace-nowrap ${tag.className}`}
+                                      >
+                                        {tag.label}
+                                      </span>
+                                    ))}
+                                  </div>
+
                                   {/* Logged Payment Banner */}
                                   {loggedPayments[visit.id] && (
                                     <div className="mt-3 bg-emerald-50 border border-emerald-100 text-emerald-800 rounded-xl p-2.5 flex items-center justify-between text-[11px] font-bold">
@@ -1352,17 +1456,41 @@ const VisitsView = () => {
 
                 {scheduleDate && (
                   <>
+                    {/* Route 1 Summary Box matching Image 1 */}
+                    {stackedStops.length > 0 && (() => {
+                      const summary = getRouteSummary();
+                      return (
+                        <div className="mb-4 bg-[#FFF5F5] border border-red-200/80 rounded-2xl p-4 shadow-3xs">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <div className="flex items-center gap-1.5">
+                                <h3 className="text-[15px] font-extrabold text-slate-800 tracking-tight">Route 1</h3>
+                                <ChevronDown size={15} className="text-slate-400" />
+                              </div>
+                              <p className="text-[11.5px] font-bold text-slate-500 mt-1">
+                                {summary.stopsCount} Stops • {summary.totalDistance} km • {summary.formattedPending}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              {summary.collectionCount > 0 && (
+                                <span className="text-[11.5px] font-extrabold text-[#ED1D24] block">
+                                  {summary.collectionCount} Collection pending
+                                </span>
+                              )}
+                              {summary.generalCount > 0 && (
+                                <span className="text-[11px] font-bold text-slate-500 block mt-0.5">
+                                  {summary.generalCount} General Visit
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
                     {/* Simplified Route Stops list */}
                     {stackedStops.length > 0 && (
                       <div className="mb-5 space-y-2">
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wide block">
-                            Route Stops ({stackedStops.length})
-                          </span>
-                          <span className="bg-slate-100 text-slate-600 text-[10px] font-extrabold px-2 py-0.5 rounded-full">
-                            {getRouteDetails().totalDistance} KM
-                          </span>
-                        </div>
                            <div className="relative border border-slate-100 rounded-2xl p-3.5 bg-slate-50/20">
                           <div className="max-h-[205px] overflow-y-auto no-scrollbar pr-0.5">
                             <Reorder.Group
@@ -1378,50 +1506,65 @@ const VisitsView = () => {
                                     value={stop}
                                     className="relative animate-none"
                                   >
-                                    <div className="bg-white border border-slate-200 rounded-xl px-4 py-3 flex items-center justify-between shadow-2xs cursor-grab active:cursor-grabbing">
-                                      <div className="flex items-center flex-1 min-w-0 pr-3">
-                                        {/* Left side: Grip and Stop Label */}
-                                        <div className="flex items-center gap-2.5 mr-2.5 shrink-0">
-                                          <div className="p-0.5 -ml-1 text-slate-305 hover:text-slate-500 transition-colors flex items-center justify-center cursor-grab active:cursor-grabbing">
-                                            <GripVertical size={14} className="stroke-[2.5]" />
-                                          </div>
-                                          <div className="w-11 h-11 rounded-xl border border-red-200 flex flex-col items-center justify-center shrink-0">
-                                            <span className="text-[8px] font-bold text-[#ED1D24] leading-none">Stop</span>
-                                            <span className="text-[13px] font-black text-[#ED1D24] font-mono leading-none mt-1">0{index + 1}</span>
-                                          </div>
-                                        </div>
-     
-                                        {/* Stop details */}
-                                        <div className="min-w-0 flex-1">
-                                          <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide truncate">
-                                            {stop.name}
-                                          </h4>
-                                          <p className="text-[10px] text-slate-400 font-semibold mt-1">
-                                            🕒 {stop.time.replace(' - ', '-')} • {stop.reason}
-                                          </p>
-                                        </div>
-                                      </div>
-     
-                                      {/* Edit & Remove buttons */}
-                                      <div className="flex items-center gap-1 shrink-0">
-                                        <button
-                                          type="button"
-                                          onClick={() => handleEditStagedStop(stop)}
-                                          className="p-1.5 hover:bg-slate-50 rounded text-slate-400 hover:text-slate-700 transition-colors"
-                                          title="Edit Stop"
-                                        >
-                                          <Pencil size={13} className="stroke-[2.5]" />
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => handleRemoveStop(stop.id)}
-                                          className="p-1.5 hover:bg-red-50 rounded text-slate-400 hover:text-red-500 transition-colors"
-                                          title="Remove"
-                                        >
-                                          <X size={14} />
-                                        </button>
-                                      </div>
-                                    </div>
+                                    <div className="bg-white border border-slate-200 rounded-2xl p-3.5 shadow-2xs cursor-grab active:cursor-grabbing">
+                                       <div className="flex items-start justify-between">
+                                         <div className="flex items-start flex-1 min-w-0 pr-2">
+                                           {/* Left side: Grip and Stop Label */}
+                                           <div className="flex items-center gap-2 mr-2.5 shrink-0 mt-0.5">
+                                             <div className="p-0.5 -ml-1 text-slate-350 hover:text-slate-500 transition-colors flex items-center justify-center cursor-grab active:cursor-grabbing">
+                                               <GripVertical size={14} className="stroke-[2.5]" />
+                                             </div>
+                                             <div className="w-10 h-10 rounded-xl border border-red-200 flex flex-col items-center justify-center shrink-0 bg-red-50/30">
+                                               <span className="text-[7.5px] font-bold text-[#ED1D24] leading-none">Stop</span>
+                                               <span className="text-[12px] font-black text-[#ED1D24] font-mono leading-none mt-0.5">0{index + 1}</span>
+                                             </div>
+                                           </div>
+        
+                                           {/* Stop details */}
+                                           <div className="min-w-0 flex-1">
+                                             <h4 className="text-[13px] font-extrabold text-slate-800 tracking-tight truncate leading-tight">
+                                               {stop.name}
+                                             </h4>
+                                             <div className="flex items-center gap-1 text-[10.5px] text-slate-400 font-semibold mt-1">
+                                               <Clock size={11} className="text-slate-400 shrink-0" />
+                                               <span>{stop.time.replace(' - ', '-')} • {stop.reason}</span>
+                                             </div>
+
+                                             {/* Multi-Condition Badges (Side-by-side 2-column wrapping) */}
+                                             <div className="flex flex-row flex-wrap items-center gap-1.5 mt-2.5 w-full">
+                                               {getDealerTags(stop).map((tag) => (
+                                                 <span
+                                                   key={tag.id}
+                                                   className={`inline-flex items-center justify-center text-[8.5px] font-bold px-2 py-0.5 rounded-md border whitespace-nowrap ${tag.className}`}
+                                                 >
+                                                   {tag.label}
+                                                 </span>
+                                               ))}
+                                             </div>
+                                           </div>
+                                         </div>
+        
+                                         {/* Edit & Remove buttons */}
+                                         <div className="flex items-center gap-0.5 shrink-0">
+                                           <button
+                                             type="button"
+                                             onClick={() => handleEditStagedStop(stop)}
+                                             className="p-1 hover:bg-slate-50 rounded-md text-slate-400 hover:text-slate-700 transition-colors"
+                                             title="Edit Stop"
+                                           >
+                                             <Pencil size={13} className="stroke-[2.5]" />
+                                           </button>
+                                           <button
+                                             type="button"
+                                             onClick={() => handleRemoveStop(stop.id)}
+                                             className="p-1 hover:bg-red-50 rounded-md text-slate-400 hover:text-red-500 transition-colors"
+                                             title="Remove"
+                                           >
+                                             <X size={14} />
+                                           </button>
+                                         </div>
+                                       </div>
+                                     </div>
      
                                     {/* Distance separator in between cards */}
                                     {index < stackedStops.length - 1 && (
@@ -1490,12 +1633,14 @@ const VisitsView = () => {
                                     }`}
                                   >
                                     <div>
-                                      {/* Top Row: Badge */}
-                                      <div className="flex items-center mb-2.5 w-full">
-                                        <div className={`${dealer.badge.bg} rounded-md px-2 py-0.5 text-[9px] font-extrabold flex items-center gap-1 border`}>
-                                          <span>{dealer.badge.text}</span>
-                                        </div>
-                                      </div>
+                                       {/* Top Row: Multi Badges */}
+                                       <div className="flex flex-wrap items-center gap-1 mb-2 w-full">
+                                         {getDealerTags(dealer).slice(0, 2).map((tag) => (
+                                           <span key={tag.id} className={`text-[8.5px] px-2 py-0.5 rounded-md border ${tag.className}`}>
+                                             {tag.label}
+                                           </span>
+                                         ))}
+                                       </div>
           
                                       <span className="font-extrabold text-[12px] text-slate-800 uppercase tracking-tight line-clamp-2 leading-tight block">
                                         {dealer.name}
@@ -1504,16 +1649,6 @@ const VisitsView = () => {
                                         <span className="text-[10px] font-semibold text-slate-400 block">
                                           {dealer.locality} ({dealer.distance} KM)
                                         </span>
-                                        {dealer.badge.text === 'Collection' && (
-                                          <div className="text-[9.5px] font-bold text-slate-500 mt-1 block">
-                                            Bal: <strong className="text-slate-700 font-extrabold">{dealer.pending}</strong>
-                                          </div>
-                                        )}
-                                        {dealer.badge.text === 'Never Visited' && (
-                                          <div className="text-[8.5px] font-bold text-slate-400 mt-1 block">
-                                            Not visited from <strong className="text-slate-500 font-extrabold">{dealer.notVisitedDays || 12} days</strong>
-                                          </div>
-                                        )}
                                       </div>
                                     </div>
                                     <button

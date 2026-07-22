@@ -75,6 +75,49 @@ const getPriorityLabel = (priority) => {
   }
 };
 
+const getDealerBadges = (stop) => {
+  const badges = [];
+  const pending = stop.pending || 0;
+  const lastVisitDays = stop.lastVisitDays || stop.notVisitedDays || 10;
+  const nonTransactingDays = stop.nonTransactingDays || (stop.lastVisitDays ? Math.max(12, stop.lastVisitDays + 3) : 15);
+
+  // 1. Collection Pending / Balance (Uniform Grey)
+  if (pending > 0) {
+    const formatted = pending >= 1000 ? `₹${(pending / 1000).toFixed(1)}K pending` : `₹${pending} pending`;
+    badges.push({
+      id: 'pending',
+      label: formatted,
+      className: 'bg-[#F1F5F9] text-slate-700 border border-slate-200/80 font-bold'
+    });
+  } else if (stop.purpose === 'Collection' || stop.reason === 'Collection') {
+    badges.push({
+      id: 'pending-generic',
+      label: 'Collection Pending',
+      className: 'bg-[#F1F5F9] text-slate-700 border border-slate-200/80 font-bold'
+    });
+  }
+
+  // 2. Non-Transacting (Uniform Grey)
+  if (nonTransactingDays && nonTransactingDays > 0) {
+    badges.push({
+      id: 'non-transacting',
+      label: `Non-Transacting (${nonTransactingDays}d)`,
+      className: 'bg-[#F1F5F9] text-slate-700 border border-slate-200/80 font-bold'
+    });
+  }
+
+  // 3. Not Visited (Uniform Grey)
+  if (lastVisitDays && lastVisitDays > 0) {
+    badges.push({
+      id: 'not-visited',
+      label: `Not Visited (${lastVisitDays}d)`,
+      className: 'bg-[#F1F5F9] text-slate-700 border border-slate-200/80 font-bold'
+    });
+  }
+
+  return badges;
+};
+
 // Nearest-neighbor TSP heuristic for route optimization
 const optimizeRoute = (dealers, startPoint) => {
   if (dealers.length <= 1) return dealers;
@@ -530,17 +573,13 @@ const RouteSummaryPanel = ({ stops, totalKm, estimatedHrs, totalCollectable, onR
                           <span className="text-[10px] font-bold text-[#ED1D24]">{formatCurrency(stop.pending)}</span>
                         )}
                       </div>
-                      {/* Reason tags */}
+                      {/* Reason tags matching exact colors */}
                       <div className="flex flex-wrap gap-1 mt-1.5">
-                        {stop.pending > 0 && (
-                          <span className="text-[9px] bg-red-50 text-[#ED1D24] font-medium px-1.5 py-0.5 rounded">Collection due</span>
-                        )}
-                        {stop.lastVisitDays >= 15 && (
-                          <span className="text-[9px] bg-amber-50 text-amber-700 font-medium px-1.5 py-0.5 rounded">Not visited {stop.lastVisitDays}d</span>
-                        )}
-                        {stop.creditPeriod === 15 && stop.pending > 0 && (
-                          <span className="text-[9px] bg-orange-50 text-orange-700 font-medium px-1.5 py-0.5 rounded">Credit expiring</span>
-                        )}
+                        {getDealerBadges(stop).map((badge) => (
+                          <span key={badge.id} className={`text-[8.5px] px-2 py-0.5 rounded-md ${badge.className}`}>
+                            {badge.label}
+                          </span>
+                        ))}
                       </div>
                     </div>
                     {/* Delete button */}
@@ -691,32 +730,47 @@ const SmartSuggestionCard = ({ routes, selectedRouteId, expandedRouteId, onSelec
                                 onReorder(newStops);
                               }
                             }}
-                            className="flex items-center gap-3 bg-white rounded-xl px-3 py-3.5 border border-slate-100 cursor-grab active:cursor-grabbing active:opacity-60"
+                            className="flex items-start gap-3 bg-white rounded-2xl p-4 border border-slate-150 shadow-2xs cursor-grab active:cursor-grabbing active:opacity-60"
                           >
-                            {/* Grip */}
-                            <GripVertical size={16} className="text-slate-400 shrink-0" />
-                            {/* Stop badge */}
-                            <div className="w-11 h-11 rounded-lg border border-red-200 bg-white flex flex-col items-center justify-center shrink-0">
-                              <span className="text-[7px] font-bold text-[#ED1D24] leading-none">Stop</span>
-                              <span className="text-[15px] font-black text-[#ED1D24] leading-none">{String(index + 1).padStart(2, '0')}</span>
+                            {/* Grip & Stop number badge */}
+                            <div className="flex items-center gap-2 shrink-0 mt-0.5">
+                              <GripVertical size={16} className="text-slate-400 shrink-0" />
+                              <div className="w-10 h-10 rounded-xl border border-red-200 bg-red-50/20 flex flex-col items-center justify-center shrink-0">
+                                <span className="text-[7px] font-bold text-[#ED1D24] leading-none">Stop</span>
+                                <span className="text-[13px] font-black text-[#ED1D24] leading-none mt-0.5">{String(index + 1).padStart(2, '0')}</span>
+                              </div>
                             </div>
+
                             {/* Info */}
                             <div className="flex-1 min-w-0">
-                              <p className="text-[13px] font-bold text-slate-800 truncate">{stop.name}</p>
-                              <p className="text-[10px] text-slate-500 mt-0.5">🕐 {timeSlot} • {purpose}</p>
-                              {stop.pending > 0 ? (
-                                <span className="inline-block mt-1.5 text-[10px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">₹{(stop.pending / 1000).toFixed(1)}K pending</span>
-                              ) : (
-                                <span className="inline-block mt-1.5 text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded">General Visit</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-extrabold text-[#C2410C] bg-[#FFF7ED] border border-[#FFEDD5] px-2 py-0.5 rounded-md shrink-0">{purpose}</span>
+                              </div>
+                              <p className="text-[11px] text-slate-400 font-semibold mt-1">🕒 {timeSlot}</p>
+                              <h4 className="text-[13px] font-extrabold text-slate-800 tracking-tight leading-snug mt-1 uppercase truncate">
+                                {stop.name}
+                              </h4>
+                              {stop.locality && (
+                                <p className="text-[10.5px] font-semibold text-slate-400">({stop.locality})</p>
                               )}
+
+                              {/* Multi-Condition Badges (Side-by-side 2-column wrapping) */}
+                              <div className="flex flex-row flex-wrap items-center gap-1.5 mt-2 w-full">
+                                {getDealerBadges(stop).map((badge) => (
+                                  <span key={badge.id} className={`inline-flex items-center justify-center text-[8.5px] font-bold px-2 py-0.5 rounded-md border whitespace-nowrap ${badge.className}`}>
+                                    {badge.label}
+                                  </span>
+                                ))}
+                              </div>
                             </div>
+
                             {/* Edit + Delete */}
-                            <div className="flex items-center gap-2 shrink-0">
-                              <button className="p-1.5 text-slate-400">
-                                <Pencil size={14} />
+                            <div className="flex items-center gap-1 shrink-0 pt-0.5">
+                              <button className="p-1.5 text-slate-400 hover:text-slate-700">
+                                <Pencil size={13} />
                               </button>
-                              <button onClick={(e) => { e.stopPropagation(); onRemoveStop(stop.id); }} className="p-1.5 text-slate-400">
-                                <X size={16} />
+                              <button onClick={(e) => { e.stopPropagation(); onRemoveStop(stop.id); }} className="p-1.5 text-slate-400 hover:text-red-500">
+                                <X size={15} />
                               </button>
                             </div>
                           </div>
