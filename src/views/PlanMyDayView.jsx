@@ -25,18 +25,18 @@ import {
 
 // ─── MOCK DATA: Delhi NCR Dealer Coordinates ───
 const DEALERS_DB = [
-  { id: 'D001', name: 'VANSUN VENTURES PRIVATE LIMITED', locality: 'Haryana', lat: 28.4595, lng: 77.0266, pending: 11400, lastVisitDays: 3, creditPeriod: 30 },
-  { id: 'D002', name: 'Modern Tyres & Service', locality: 'Sector 18, Noida', lat: 28.5706, lng: 77.3218, pending: 23290, lastVisitDays: 7, creditPeriod: 30 },
-  { id: 'D003', name: 'Super Wheel Care', locality: 'Gurgaon, Haryana', lat: 28.4292, lng: 77.0130, pending: 15400, lastVisitDays: 12, creditPeriod: 15 },
-  { id: 'D004', name: 'SAI RAM TYRES', locality: 'Rohini, Delhi', lat: 28.7325, lng: 77.1107, pending: 12800, lastVisitDays: 18, creditPeriod: 30 },
-  { id: 'D005', name: 'Lucky Tyre House', locality: 'Dwarka, Delhi', lat: 28.5921, lng: 77.0460, pending: 9200, lastVisitDays: 5, creditPeriod: 30 },
-  { id: 'D006', name: 'Sharma Auto', locality: 'Vijay Nagar, Ghaziabad', lat: 28.6380, lng: 77.4126, pending: 18500, lastVisitDays: 22, creditPeriod: 15 },
-  { id: 'D007', name: 'Delhi Tyre World', locality: 'Janakpuri, Delhi', lat: 28.6219, lng: 77.0815, pending: 0, lastVisitDays: 25, creditPeriod: 30 },
-  { id: 'D008', name: 'Capital Wheels', locality: 'Connaught Place, Delhi', lat: 28.6315, lng: 77.2167, pending: 0, lastVisitDays: 30, creditPeriod: 30 },
-  { id: 'D009', name: 'Raj Tyres & Alignment', locality: 'Lajpat Nagar, Delhi', lat: 28.5700, lng: 77.2400, pending: 31000, lastVisitDays: 4, creditPeriod: 30 },
-  { id: 'D010', name: 'Bharat Rubber Works', locality: 'Karol Bagh, Delhi', lat: 28.6519, lng: 77.1905, pending: 7500, lastVisitDays: 9, creditPeriod: 15 },
-  { id: 'D011', name: 'Gupta Tyres & Accessories', locality: 'Dwarka, Delhi', lat: 28.5830, lng: 77.0550, pending: 4200, lastVisitDays: 2, creditPeriod: 30 },
-  { id: 'D012', name: 'Punjab Tyre House', locality: 'Pitampura, Delhi', lat: 28.7020, lng: 77.1330, pending: 19800, lastVisitDays: 16, creditPeriod: 30 },
+  { id: 'D001', name: 'VANSUN VENTURES PRIVATE LIMITED', locality: 'Haryana', region: 'Haryana', lat: 28.4595, lng: 77.0266, pending: 11400, lastVisitDays: 3, creditPeriod: 30 },
+  { id: 'D002', name: 'Modern Tyres & Service', locality: 'Sector 18, Noida', region: 'Delhi', lat: 28.5706, lng: 77.3218, pending: 23290, lastVisitDays: 7, creditPeriod: 30 },
+  { id: 'D003', name: 'Super Wheel Care', locality: 'Gurgaon, Haryana', region: 'Haryana', lat: 28.4292, lng: 77.0130, pending: 15400, lastVisitDays: 12, creditPeriod: 15 },
+  { id: 'D004', name: 'SAI RAM TYRES', locality: 'Rohini, Delhi', region: 'Delhi', lat: 28.7325, lng: 77.1107, pending: 12800, lastVisitDays: 18, creditPeriod: 30 },
+  { id: 'D005', name: 'Lucky Tyre House', locality: 'Dwarka, Delhi', region: 'Delhi', lat: 28.5921, lng: 77.0460, pending: 9200, lastVisitDays: 5, creditPeriod: 30 },
+  { id: 'D006', name: 'Sharma Auto', locality: 'Vijay Nagar, Ghaziabad', region: 'Delhi', lat: 28.6380, lng: 77.4126, pending: 18500, lastVisitDays: 22, creditPeriod: 15 },
+  { id: 'D007', name: 'Delhi Tyre World', locality: 'Janakpuri, Delhi', region: 'Delhi', lat: 28.6219, lng: 77.0815, pending: 0, lastVisitDays: 25, creditPeriod: 30 },
+  { id: 'D008', name: 'Capital Wheels', locality: 'Connaught Place, Delhi', region: 'Delhi', lat: 28.6315, lng: 77.2167, pending: 0, lastVisitDays: 30, creditPeriod: 30 },
+  { id: 'D009', name: 'Raj Tyres & Alignment', locality: 'Lajpat Nagar, Delhi', region: 'Delhi', lat: 28.5700, lng: 77.2400, pending: 31000, lastVisitDays: 4, creditPeriod: 30 },
+  { id: 'D010', name: 'Bharat Rubber Works', locality: 'Karol Bagh, Delhi', region: 'Delhi', lat: 28.6519, lng: 77.1905, pending: 7500, lastVisitDays: 9, creditPeriod: 15 },
+  { id: 'D011', name: 'Gupta Tyres & Accessories', locality: 'Dwarka, Delhi', region: 'Delhi', lat: 28.5830, lng: 77.0550, pending: 4200, lastVisitDays: 2, creditPeriod: 30 },
+  { id: 'D012', name: 'Punjab Tyre House', locality: 'Pitampura, Delhi', region: 'Delhi', lat: 28.7020, lng: 77.1330, pending: 19800, lastVisitDays: 16, creditPeriod: 30 },
 ];
 
 const RM_START = { lat: 28.5355, lng: 77.3910, label: 'Your Location (Noida)' };
@@ -650,6 +650,170 @@ const RouteSummaryPanel = ({ stops, totalKm, estimatedHrs, totalCollectable, onR
   );
 };
 
+// ─── REGION SELECTOR — Groups routes by area with inline route expansion ───
+const RegionSelector = ({ regions, expandedRegion, onToggleRegion, suggestedRoutes, selectedRouteId, expandedRouteId, onSelectRoute, routeStops, onRemoveStop, onReorder, onAddDealerClick, showDealerList, onCloseDealerList, nearbyDealers, onAddNearby, showManualForm, onManualFormToggle, manualDealer, onManualDealerChange, manualPurpose, onManualPurposeChange, onManualAdd }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    className="mx-4 mb-4"
+  >
+    <div className="flex items-center gap-2 mb-3 px-1">
+      <span className="text-[12px] font-bold text-slate-700">Select Region</span>
+      <span className="text-[10px] text-slate-400 ml-auto">AI-grouped by area</span>
+    </div>
+    <div className="space-y-2.5">
+      {regions.map((region) => {
+        const isExpanded = expandedRegion === region.name;
+        return (
+          <div key={region.name} className={`overflow-hidden rounded-2xl border transition-all ${isExpanded ? 'border-[#ED1D24]/30 shadow-sm' : 'border-slate-100'}`}>
+            {/* Region Header */}
+            <button
+              onClick={() => onToggleRegion(region.name)}
+              className="w-full bg-white px-4 py-4 text-left"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <MapPin size={16} className="text-[#ED1D24]" />
+                  <span className="text-[14px] font-bold text-slate-800">{region.name}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-bold text-[#ED1D24] bg-red-50 px-2.5 py-0.5 rounded-full">
+                    {region.routeCount} routes
+                  </span>
+                  <ChevronDown
+                    size={16}
+                    className={`text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                  />
+                </div>
+              </div>
+            </button>
+
+            {/* Expanded Routes inside region */}
+            <AnimatePresence>
+              {isExpanded && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden border-t border-slate-100"
+                >
+                  <div className="p-3 bg-slate-50/50">
+                    <div className="flex items-center gap-2 mb-2.5 px-1">
+                      <span className="text-[11px] font-bold text-slate-600">Suggested Routes</span>
+                      <span className="text-[9px] text-slate-400 ml-auto">Ranked by collections</span>
+                    </div>
+                    <div className="space-y-2">
+                      {suggestedRoutes.map((route) => {
+                        const totalKm = getTotalDistance(route.dealers, RM_START);
+                        const isSelected = selectedRouteId === route.id;
+                        const isRouteExpanded = expandedRouteId === route.id;
+                        const generalVisitCount = route.dealers.filter(d => d.pending === 0).length;
+
+                        return (
+                          <div key={route.id} className={`overflow-hidden rounded-xl border transition-all ${isSelected ? 'border-[#ED1D24]/40' : 'border-slate-150'} ${selectedRouteId && !isSelected ? 'opacity-40' : 'opacity-100'}`}>
+                            <button
+                              onClick={() => onSelectRoute(route.id)}
+                              className={`w-full p-3 text-left transition-all ${isSelected ? 'bg-[#ED1D24]/5' : 'bg-white'}`}
+                            >
+                              <div className="flex items-start justify-between">
+                                <div>
+                                  <span className="text-[13px] font-bold text-slate-800">Route {route.id}</span>
+                                  <p className="text-[11px] text-slate-500 mt-0.5">{route.dealers.length} Stops • {totalKm.toFixed(0)} km • {formatCurrency(route.dealers.reduce((s, d) => s + d.pending, 0))}</p>
+                                </div>
+                                <div className="text-right">
+                                  <ChevronDown size={14} className={`text-slate-400 transition-transform ml-auto ${isRouteExpanded ? 'rotate-180' : ''}`} />
+                                  <div className="mt-1.5 space-y-0.5">
+                                    {route.collectionCount > 0 && (
+                                      <p className="text-[11px] text-slate-700 font-medium">{route.collectionCount} Collection pending</p>
+                                    )}
+                                    {generalVisitCount > 0 && (
+                                      <p className="text-[11px] text-slate-500">{generalVisitCount} General Visit</p>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </button>
+
+                            {/* Expanded stops inside route */}
+                            <AnimatePresence>
+                              {isRouteExpanded && isSelected && routeStops.length > 0 && (
+                                <motion.div
+                                  initial={{ height: 0, opacity: 0 }}
+                                  animate={{ height: 'auto', opacity: 1 }}
+                                  exit={{ height: 0, opacity: 0 }}
+                                  className="overflow-hidden border-t border-slate-100"
+                                >
+                                  <div className="p-3 space-y-0 bg-slate-50/50">
+                                    {routeStops.map((stop, index) => {
+                                      const timeSlots = ['9:00AM-12:00PM', '12:00PM-03:00PM', '03:00PM-06:00PM'];
+                                      const timeSlot = timeSlots[index % timeSlots.length];
+                                      const purpose = stop.pending > 0 ? 'Collection' : 'General Visit';
+                                      let distToNext = null;
+                                      if (index < routeStops.length - 1) {
+                                        distToNext = getDistance(stop.lat, stop.lng, routeStops[index + 1].lat, routeStops[index + 1].lng).toFixed(1);
+                                      }
+
+                                      return (
+                                        <React.Fragment key={stop.id}>
+                                          <div className="flex items-center gap-3 bg-white rounded-xl px-3 py-3.5 border border-slate-100">
+                                            <GripVertical size={16} className="text-slate-400 shrink-0" />
+                                            <div className="w-11 h-11 rounded-lg border border-red-200 bg-white flex flex-col items-center justify-center shrink-0">
+                                              <span className="text-[7px] font-bold text-[#ED1D24] leading-none">Stop</span>
+                                              <span className="text-[15px] font-black text-[#ED1D24] leading-none">{String(index + 1).padStart(2, '0')}</span>
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                              <p className="text-[13px] font-bold text-slate-800 truncate">{stop.name}</p>
+                                              <p className="text-[10px] text-slate-500 mt-0.5">🕐 {timeSlot} • {purpose}</p>
+                                              {stop.pending > 0 ? (
+                                                <span className="inline-block mt-1.5 text-[10px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">₹{(stop.pending / 1000).toFixed(1)}K pending</span>
+                                              ) : (
+                                                <span className="inline-block mt-1.5 text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded">General Visit</span>
+                                              )}
+                                            </div>
+                                            <button onClick={() => onRemoveStop(stop.id)} className="p-1.5 text-slate-400 shrink-0">
+                                              <X size={16} />
+                                            </button>
+                                          </div>
+                                          {distToNext && (
+                                            <div className="flex items-center py-2 px-4">
+                                              <div className="flex-1 border-t border-dashed border-slate-200" />
+                                              <span className="px-3 text-[10px] font-medium text-slate-500 flex items-center gap-1">
+                                                <MapPin size={10} /> {distToNext} KM
+                                              </span>
+                                              <div className="flex-1 border-t border-dashed border-slate-200" />
+                                            </div>
+                                          )}
+                                        </React.Fragment>
+                                      );
+                                    })}
+                                    {/* Add Dealer Button */}
+                                    {!showDealerList && (
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); if (onAddDealerClick) onAddDealerClick(); }}
+                                        className="w-full py-2.5 border-2 border-dashed border-slate-200 rounded-lg text-[11px] font-bold text-slate-500 flex items-center justify-center gap-1.5 hover:border-[#ED1D24] hover:text-[#ED1D24] transition-colors"
+                                      >
+                                        <Plus size={14} /> Add Dealer
+                                      </button>
+                                    )}
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        );
+      })}
+    </div>
+  </motion.div>
+);
+
 // ─── SMART SUGGESTION CARD — 3 ROUTE OPTIONS (ACCORDION) ───
 const SmartSuggestionCard = ({ routes, selectedRouteId, expandedRouteId, onSelectRoute, routeStops, onRemoveStop, onReorder, onAddDealerClick, showDealerList, onCloseDealerList, nearbyDealers, onAddNearby, showManualForm, onManualFormToggle, manualDealer, onManualDealerChange, manualPurpose, onManualPurposeChange, onManualAdd }) => (
   <motion.div
@@ -993,6 +1157,22 @@ const PlanMyDayView = () => {
   const [suggestedRoutes] = useState(() => generateThreeRoutes());
   const [selectedRouteId, setSelectedRouteId] = useState(null);
 
+  // Group routes by region for the region selector
+  const regions = (() => {
+    const regionMap = {};
+    DEALERS_DB.forEach(d => {
+      if (!regionMap[d.region]) regionMap[d.region] = 0;
+      regionMap[d.region]++;
+    });
+    // Generate route counts per region based on dealers
+    const delhiDealers = DEALERS_DB.filter(d => d.region === 'Delhi');
+    const haryanaDealers = DEALERS_DB.filter(d => d.region === 'Haryana');
+    return [
+      { name: 'Delhi', routeCount: Math.min(7, Math.ceil(delhiDealers.length / 1.5)), dealers: delhiDealers },
+      { name: 'Haryana', routeCount: Math.max(1, Math.ceil(haryanaDealers.length / 2)), dealers: haryanaDealers },
+    ];
+  })();
+
   // Derived: the currently selected route's dealers
   const selectedRouteData = suggestedRoutes.find(r => r.id === selectedRouteId);
 
@@ -1008,6 +1188,7 @@ const PlanMyDayView = () => {
   // Tap same = just toggle expand/collapse (keep selection)
   // Tap different = switch selection + expand
   const [expandedRouteId, setExpandedRouteId] = useState(null);
+  const [expandedRegion, setExpandedRegion] = useState(null);
   const [showDealerList, setShowDealerList] = useState(false);
   const [showManualForm, setShowManualForm] = useState(false);
   const [manualDealer, setManualDealer] = useState('');
@@ -1330,9 +1511,12 @@ const PlanMyDayView = () => {
             </div>
           )}
 
-          {/* Route Options as Accordions */}
-          <SmartSuggestionCard
-            routes={suggestedRoutes}
+          {/* Region Selector with routes inside */}
+          <RegionSelector
+            regions={regions}
+            expandedRegion={expandedRegion}
+            onToggleRegion={(region) => setExpandedRegion(expandedRegion === region ? null : region)}
+            suggestedRoutes={suggestedRoutes}
             selectedRouteId={selectedRouteId}
             expandedRouteId={expandedRouteId}
             onSelectRoute={handleSelectRoute}
